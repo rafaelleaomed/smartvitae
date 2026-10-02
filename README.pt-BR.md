@@ -11,7 +11,7 @@
 
 <div align="center">
 
-[![Live Demo - Acesso Gratuito](https://img.shields.io/badge/Live%20Demo-Acesso%20Imediato%20(Sem%20Cadastro)-emerald?style=for-the-badge&logo=render)](https://nexovitae.onrender.com)
+[![Live Demo - Acesso Gratuito](https://img.shields.io/badge/Live%20Demo-Acesso%20Imediato%20(Sem%20Cadastro)-emerald?style=for-the-badge&logo=render)](https://smartvitae.onrender.com)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Next.js](https://img.shields.io/badge/Next.js-15%20App%20Router-black?logo=next.js)
@@ -24,7 +24,7 @@
 
 </div>
 
-> 🚀 **Explore Sem Cadastro**: Qualquer visitante pode testar e navegar por toda a plataforma utilizando currículos reais, links de vagas, diagnósticos multidimensionais de estresse e reestruturação factual de currículo acessando o **[Live Demo](https://nexovitae.onrender.com)**.
+> 🚀 **Explore Sem Cadastro**: Qualquer visitante pode testar e navegar por toda a plataforma utilizando currículos reais, links de vagas, diagnósticos multidimensionais de estresse e reestruturação factual de currículo acessando o **[Live Demo](https://smartvitae.onrender.com)**.
 
 ---
 
