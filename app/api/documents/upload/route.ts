@@ -83,7 +83,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: dupError.message }, { status: 409 });
     }
 
-    // 5. Normalização de Trecho e Classificação com o Jev
+    // 5. Detecta se o arquivo é um Currículo Completo ou um Certificado Individual
+    const isCvOrResume =
+      file.name.toLowerCase().includes("curriculo") ||
+      file.name.toLowerCase().includes("currículo") ||
+      file.name.toLowerCase().includes("cv") ||
+      file.name.toLowerCase().includes("resume") ||
+      (sanitization.sanitizedText.length > 300 &&
+        /(experiência|experience|educação|education|formação|formacao|histórico|skills|habilidades)/i.test(
+          sanitization.sanitizedText
+        ));
+
+    if (isCvOrResume) {
+      // Processamento inteligente de Currículo Completo (Claude + JEV)
+      let parsedCv;
+      try {
+        const { structureResumeWithClaude } = await import("@/services/ai/claude-service");
+        parsedCv = await structureResumeWithClaude(sanitization.sanitizedText);
+      } catch (err: any) {
+        console.warn("Fallback para parser determinístico no upload de CV:", err.message);
+        const { parseCvTextToEvidences } = await import("@/services/extraction/cv-section-parser");
+        parsedCv = parseCvTextToEvidences(sanitization.sanitizedText);
+      }
+
+      // Atualiza o perfil do candidato com registros identificados
+      localStore.updateProfile(DEMO_USER_ID, {
+        full_name: parsedCv.candidateName,
+        crm_number: parsedCv.crmNumber,
+        crm_state: parsedCv.crmState,
+        rqe_numbers: parsedCv.rqeNumbers,
+      });
+
+      // Adiciona cada uma das evidências estruturadas à base auditável vinculadas a este documento
+      const savedEvidences = parsedCv.evidences.map((ev) => {
+        const item: EvidenceItem = {
+          ...ev,
+          document_id: docId,
+        };
+        localStore.addEvidence(item);
+        return item;
+      });
+
+      return NextResponse.json({
+        success: true,
+        isCv: true,
+        document: newDoc,
+        evidenceCount: savedEvidences.length,
+        evidences: savedEvidences,
+      });
+    }
+
+    // 6. Caso seja Certificado Individual: Normalização e Classificação pelo JEV
     const normalized = normalizeCertificateText(sanitization.sanitizedText, 1);
     const decisionProvider = getDecisionProvider();
 
@@ -96,7 +146,6 @@ export async function POST(req: NextRequest) {
       text_excerpt: normalized.excerpt,
     });
 
-    // 6. Criação do Item de Evidência na Base Auditável
     const evidenceItem: EvidenceItem = {
       id: `ev-${Date.now()}`,
       user_id: DEMO_USER_ID,
@@ -124,8 +173,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      isCv: false,
       document: newDoc,
       evidence: evidenceItem,
+      evidenceCount: 1,
       decision,
     });
   } catch (error: any) {

@@ -18,6 +18,7 @@ import {
   Loader2,
   UploadCloud,
   ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { EvidenceItem } from "@/lib/db/types";
 
@@ -29,6 +30,7 @@ export default function EvidenciasPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [inspectingItem, setInspectingItem] = useState<EvidenceItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [isReorganizing, setIsReorganizing] = useState(false);
 
   useEffect(() => {
     loadEvidence();
@@ -45,6 +47,22 @@ export default function EvidenciasPage() {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
+  };
+
+  const handleReorganizeWithClaude = async () => {
+    setIsReorganizing(true);
+    try {
+      const res = await fetch("/api/evidence/reorganize", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao reorganizar com Claude.");
+      }
+      loadEvidence();
+    } catch (e: any) {
+      alert(`Erro: ${e.message}`);
+    } finally {
+      setIsReorganizing(false);
+    }
   };
 
   const handleApprove = async (id: string) => {
@@ -118,6 +136,24 @@ export default function EvidenciasPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleReorganizeWithClaude}
+            disabled={isReorganizing || evidenceList.length === 0}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+          >
+            {isReorganizing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Estruturando com Claude...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                Reorganizar Fatos com Claude
+              </>
+            )}
+          </button>
           <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
             {filteredEvidence.length} evidências exibidas
           </span>

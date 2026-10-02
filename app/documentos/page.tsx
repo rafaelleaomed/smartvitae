@@ -74,9 +74,13 @@ export default function DocumentosPage() {
         throw new Error(data.error || "Falha no envio do arquivo.");
       }
 
+      const successMsg = data.isCv
+        ? `Currículo "${file.name}" processado com sucesso! A IA estruturou ${data.evidenceCount} qualificações e evidências factuais em sua base.`
+        : `Arquivo "${file.name}" processado com sucesso! O Jev identificou como "${data.evidence?.title}".`;
+
       setUploadFeedback({
         type: "success",
-        message: `Arquivo "${file.name}" processado com sucesso! O Jev identificou como "${data.evidence?.title}".`,
+        message: successMsg,
       });
       loadDocuments();
     } catch (err: any) {
