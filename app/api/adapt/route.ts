@@ -149,72 +149,53 @@ export async function POST(req: NextRequest) {
     const sanitizedResume = sanitizeTextForAI(resumeText);
     const sanitizedJob = sanitizeTextForAI(extractedJobText);
 
-    // 4. Executa o Teste de Estresse Jev Multi-Dimensional (Inspirado no KillMyIdea)
+    // 4. Extração Factual das Evidências Reais do Currículo (Zero Invenção de CRM/RQE)
+    const { parseCvTextToEvidences } = await import("@/services/extraction/cv-section-parser");
+    const parsedCv = parseCvTextToEvidences(resumeText);
+
+    // Atualiza o perfil estritamente com os dados declarados pelo usuário
+    localStore.updateProfile(DEMO_USER_ID, {
+      full_name: parsedCv.candidateName,
+      crm_number: parsedCv.crmNumber,
+      crm_state: parsedCv.crmState,
+      rqe_numbers: parsedCv.rqeNumbers,
+    });
+
+    // Popula a Base de Evidências com os fatos reais extraídos do currículo
+    if (parsedCv.evidences.length > 0) {
+      localStore.setEvidences(parsedCv.evidences);
+    }
+
+    // 5. Executa o Teste de Estresse Jev Multi-Dimensional (Inspirado no KillMyIdea)
     const stressTest: StressTestResult = await runJevStressTest(
       sanitizedResume.sanitizedText,
       sanitizedJob.sanitizedText,
       jobUrl
     );
 
+    const jobTitle = sanitizedJob.sanitizedText.split("\n")[0].substring(0, 80);
+
     // Se o veredito for KILL: BLOQUEIA adaptação de currículo mentiroso!
     if (stressTest.verdict === "kill" || !stressTest.allowResumeGeneration) {
       return NextResponse.json({
         success: true,
         stressTest,
-        result: null, // Sem currículo alucinado
-        jobTitle: sanitizedJob.sanitizedText.split("\n")[0].substring(0, 80),
+        canAdapt: false,
+        jobTitle,
         message:
-          "Veredito KILL: O NexoVitae identificou que seu perfil é frontalmente desalinhado com esta vaga. Currículo adaptado bloqueado para evitar alucinação.",
+          "Veredito KILL: O NexoVitae identificou que seu perfil é frontalmente desalinhado com esta vaga. Adaptação bloqueada para evitar alucinação.",
       });
     }
 
-    const baseProfile = localStore.getProfile(DEMO_USER_ID);
-    const firstLine = resumeText.trim().split("\n")[0].trim();
-    const candidateName =
-      firstLine.length > 3 &&
-      firstLine.length < 50 &&
-      !firstLine.toLowerCase().includes("currículo") &&
-      !firstLine.toLowerCase().includes("resumo")
-        ? firstLine
-        : baseProfile.full_name;
-
-    const candidateProfile = {
-      ...baseProfile,
-      full_name: candidateName,
-    };
-    // Cria um item de evidência dinâmico baseado no currículo real enviado pelo usuário
-    const candidateEvidences: EvidenceItem[] = [
-      {
-        id: `ev-real-${Date.now()}`,
-        user_id: DEMO_USER_ID,
-        evidence_type: "experiencia",
-        resume_section: "experiencia",
-        title: "Trajetória Profissional Comprovada",
-        description: sanitizedResume.sanitizedText.substring(0, 500),
-        skills: [],
-        source_pages: [1],
-        source_excerpt: sanitizedResume.sanitizedText.substring(0, 300),
-        classification_source: "jev",
-        confidence: 0.95,
-        career_signal: 4,
-        review_status: "approved",
-        user_locked: true,
-        created_at: new Date().toISOString(),
-      },
-    ];
-
-    const tailorService = new TailorService();
-    const jobAnalysis = await tailorService.parseJobDescription(sanitizedJob.sanitizedText, jobUrl);
-    const result = await tailorService.matchAndTailor(candidateProfile, jobAnalysis, candidateEvidences);
-
-    // Ajusta o score do currículo para respeitar a nota exata do Jev Stress Test
-    result.adherenceScore = stressTest.score;
-
+    // Se o veredito for FIX ou SHIP: Retorna os dados para a página de adaptação
     return NextResponse.json({
       success: true,
       stressTest,
-      jobAnalysis,
-      result,
+      canAdapt: true,
+      jobTitle,
+      jobText: extractedJobText,
+      jobUrl,
+      parsedCv,
     });
   } catch (error: any) {
     console.error("Erro na avaliação de estresse Jev:", error);

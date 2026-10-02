@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Database,
   CheckCircle,
@@ -15,6 +16,8 @@ import {
   Trash2,
   Check,
   Loader2,
+  UploadCloud,
+  ArrowRight,
 } from "lucide-react";
 import { EvidenceItem } from "@/lib/db/types";
 
@@ -166,9 +169,35 @@ export default function EvidenciasPage() {
       {loading ? (
         <div className="p-16 text-center text-slate-500 text-sm">Carregando base de evidências...</div>
       ) : filteredEvidence.length === 0 ? (
-        <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-2">
-          <Database className="w-8 h-8 text-slate-300 mx-auto" />
-          <p className="text-sm font-semibold text-slate-700">Nenhuma evidência encontrada para os filtros selecionados.</p>
+        <div className="bg-white p-12 sm:p-16 rounded-3xl border border-slate-200 text-center space-y-4 max-w-2xl mx-auto shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <Database className="w-7 h-7" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">
+              Nenhuma evidência cadastrada ainda
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
+              A Base de Evidências do NexoVitae não utiliza dados fictícios.
+              Ela exibe exclusivamente o que for extraído do seu currículo real ou dos certificados que você enviar, devidamente classificados pelo JEV.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Analisar Currículo na Página Inicial
+            </Link>
+            <Link
+              href="/documentos"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200"
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              Subir Certificados Avulsos
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

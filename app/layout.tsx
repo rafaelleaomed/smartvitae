@@ -69,16 +69,20 @@ export default function RootLayout({
             </nav>
 
             <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-              <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold text-slate-800 flex items-center gap-1 justify-end">
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  Dr. Lucas Carvalho
+              <Link
+                href="/evidencias"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors text-right"
+              >
+                <div>
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 justify-end">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                    Base de Evidências
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    Somente Fatos Comprovados
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-500">CRM 123456-SP • RQE 65432</div>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200">
-                LC
-              </div>
+              </Link>
             </div>
           </div>
         </header>

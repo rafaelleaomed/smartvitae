@@ -1,17 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { localStore, DEMO_USER_ID } from "@/lib/db/store";
 
-describe("Fluxo de API e Repositório de Evidências", () => {
-  it("deve carregar os dados de seed inicial com residência médica e certificação", () => {
+describe("Fluxo de API e Repositório de Evidências (Zero Alucinação)", () => {
+  it("deve iniciar a base de evidências limpa sem dados fictícios ou alucinações", () => {
+    localStore.clearEvidence();
     const evidences = localStore.getEvidence(DEMO_USER_ID);
-    expect(evidences.length).toBeGreaterThanOrEqual(2);
+    expect(evidences.length).toBe(0);
 
-    const residencia = evidences.find((e) => e.evidence_type === "residencia");
-    expect(residencia).toBeDefined();
-    expect(residencia?.career_signal).toBe(5);
+    const profile = localStore.getProfile(DEMO_USER_ID);
+    expect(profile.crm_number).toBeNull();
+    expect(profile.rqe_numbers).toEqual([]);
   });
 
-  it("deve aprovar e travar uma evidência com user_locked = true", () => {
+  it("deve permitir registrar e travar uma evidência real com user_locked = true", () => {
     const item = localStore.addEvidence({
       id: "ev-test-lock",
       user_id: DEMO_USER_ID,
@@ -38,7 +39,7 @@ describe("Fluxo de API e Repositório de Evidências", () => {
     expect(approved?.review_status).toBe("approved");
     expect(approved?.user_locked).toBe(true);
 
-    // Tentar sobrescrever sem destravar deve lançar erro
+    // Tentar sobrescrever sem destravar deve lançar erro de integridade
     expect(() => {
       localStore.updateEvidence("ev-test-lock", {
         title: "Tentativa de alteração automática",
