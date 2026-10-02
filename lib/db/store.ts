@@ -73,8 +73,15 @@ class LocalStore {
   }
 
   addEvidence(item: EvidenceItem): EvidenceItem {
-    this.evidence.unshift(item);
-    return item;
+    const withId: EvidenceItem = {
+      ...item,
+      id: item.id || crypto.randomUUID(),
+      confidence: typeof item.confidence === "number" && !isNaN(item.confidence) ? item.confidence : 0.95,
+      classification_source: item.classification_source || "jev",
+      career_signal: item.career_signal || 4,
+    };
+    this.evidence.unshift(withId);
+    return withId;
   }
 
   setEvidences(items: EvidenceItem[]): void {
@@ -111,14 +118,14 @@ class LocalStore {
 
 // Singleton global persistente para Next.js App Router
 declare global {
-  var __nexovitae_local_store: LocalStore | undefined;
+  var __smartvitae_local_store: LocalStore | undefined;
 }
 
 export const localStore =
-  globalThis.__nexovitae_local_store ?? new LocalStore();
+  globalThis.__smartvitae_local_store ?? new LocalStore();
 
 if (process.env.NODE_ENV !== "production") {
-  globalThis.__nexovitae_local_store = localStore;
+  globalThis.__smartvitae_local_store = localStore;
 }
 
 export const DEMO_USER_ID = SEED_USER_ID;

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { runJevStressTest } from "@/services/decisions/stress-test";
 
-describe("NexoVitae JEV Stress Test (Anti-Alucinação Estilo KillMyIdea)", () => {
+
+describe("SmartVitae JEV Stress Test", () => {
   const doctorCv = `
 Dr. Rafael Leão
 Médico Clínico Geral | CRM 123456-SP • RQE 65432

@@ -10,10 +10,17 @@ export async function GET() {
     const profile = localStore.getProfile(DEMO_USER_ID);
     const documents = localStore.getDocuments(DEMO_USER_ID);
 
+    const sanitizedEvidence = evidence.map((e) => ({
+      ...e,
+      confidence: typeof e.confidence === "number" && !isNaN(e.confidence) ? e.confidence : 0.95,
+      classification_source: e.classification_source || "jev",
+      career_signal: e.career_signal || 4,
+    }));
+
     return NextResponse.json({
       success: true,
       profile,
-      evidence,
+      evidence: sanitizedEvidence,
       documents,
     });
   } catch (error: any) {
@@ -26,10 +33,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validated = EvidenceItemSchema.parse({
       ...body,
+      id: body.id || crypto.randomUUID(),
       user_id: DEMO_USER_ID,
-      classification_source: "user",
-      confidence: 1.0,
-      user_locked: true,
+      classification_source: body.classification_source || "user",
+      confidence: body.confidence ?? 1.0,
+      user_locked: body.user_locked ?? false,
+      review_status: body.review_status || "pending",
       created_at: new Date().toISOString(),
     });
 

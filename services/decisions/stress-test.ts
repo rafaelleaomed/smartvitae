@@ -27,7 +27,7 @@ export interface StressTestResult {
 }
 
 /**
- * Motor de Avaliação Rigorosa Jev (System One) — Inspirado no KillMyIdea
+
  * Avalia currículo x vaga em 6 dimensões paralelas com notas 0 a 4.
  * Jamais dá falsas esperanças: se o perfil for discrepante, emite KILL.
  */
@@ -353,7 +353,7 @@ function buildStressTestVerdict(
 
   const honestDiagnosis =
     verdict === "kill"
-      ? `Aderência Factual de apenas ${finalScore}%. O NexoVitae bloqueia a geração de currículos inflados quando o JEV identifica um descompasso estrutural. Dizer a verdade sobre a sua aderência economiza seu tempo e preserva sua reputação profissional.`
+      ? `Aderência Factual de apenas ${finalScore}%. O SmartVitae bloqueia a geração de currículos inflados quando o JEV identifica um descompasso estrutural. Dizer a verdade sobre a sua aderência economiza seu tempo e preserva sua reputação profissional.`
       : verdict === "fix"
       ? `Aderência Factual estimada em ${finalScore}%. É uma vaga desafiadora que exigirá explicar como sua formação preenche parte dos requisitos, sem esconder as lacunas.`
       : `Aderência Factual de ${finalScore}%. Candidatura altamente recomendada com suporte documental sólido.`;

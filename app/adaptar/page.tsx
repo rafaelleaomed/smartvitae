@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -15,13 +15,32 @@ import {
   Check,
   Loader2,
   Database,
-  PlusCircle,
-  Clock,
-  Layers,
+  GraduationCap,
+  Briefcase,
+  Wrench,
+  Languages,
   Award,
+  BookOpen,
+  FolderGit2,
+  FileCheck,
+  XCircle,
+  RotateCcw,
+  RefreshCw,
+  Search,
 } from "lucide-react";
 import { EvidenceItem } from "@/lib/db/types";
 import { StressTestResult } from "@/services/decisions/stress-test";
+
+type FilterCategory =
+  | "todos"
+  | "formacao"
+  | "experiencia"
+  | "habilidades"
+  | "idiomas"
+  | "certificacoes"
+  | "cursos"
+  | "projetos"
+  | "publicacoes";
 
 export default function AdaptarPage() {
   const [jobTitle, setJobTitle] = useState("Vaga Pretendida");
@@ -34,18 +53,30 @@ export default function AdaptarPage() {
   // Estados de Upload para cobrir lacunas
   const [uploadingGapIndex, setUploadingGapIndex] = useState<number | null>(null);
   const [uploadedGaps, setUploadedGaps] = useState<{ [key: number]: string }>({});
+  // Lacunas marcadas como "Não possuo essa experiência/certificação"
+  const [declaredAbsentGaps, setDeclaredAbsentGaps] = useState<{ [key: number]: boolean }>({});
 
-  // Estados de Reestruturação
+  // Filtros e busca da Tabela de Evidências
+  const [selectedCategory, setSelectedCategory] = useState<FilterCategory>("todos");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [isReorganizing, setIsReorganizing] = useState(false);
+
+  // Estados de Reestruturação do Currículo
   const [isRestructuring, setIsRestructuring] = useState(false);
   const [restructuredCv, setRestructuredCv] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Carrega dados da sessão ou da API de evidências
   useEffect(() => {
-    // 1. Tenta carregar contexto da sessão
-    const storedJobTitle = sessionStorage.getItem("nexovitae_job_title");
-    const storedJobText = sessionStorage.getItem("nexovitae_job_text");
-    const storedStressTest = sessionStorage.getItem("nexovitae_stress_test");
+    const storedJobTitle =
+      sessionStorage.getItem("smartvitae_job_title") ||
+      sessionStorage.getItem("nexovitae_job_title");
+    const storedJobText =
+      sessionStorage.getItem("smartvitae_job_text") ||
+      sessionStorage.getItem("nexovitae_job_text");
+    const storedStressTest =
+      sessionStorage.getItem("smartvitae_stress_test") ||
+      sessionStorage.getItem("nexovitae_stress_test");
 
     if (storedJobTitle) setJobTitle(storedJobTitle);
     if (storedJobText) setJobText(storedJobText);
@@ -57,7 +88,6 @@ export default function AdaptarPage() {
       }
     }
 
-    // 2. Carrega a Base de Evidências Reais da API
     loadRealEvidences();
   }, []);
 
@@ -77,6 +107,23 @@ export default function AdaptarPage() {
       }
     } catch (err) {
       console.error("Falha ao carregar evidências:", err);
+    }
+  };
+
+  // Reorganizar base de evidências via Claude sob demanda
+  const handleReorganizeWithClaude = async () => {
+    setIsReorganizing(true);
+    try {
+      const res = await fetch("/api/evidence/reorganize", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao reorganizar.");
+      }
+      await loadRealEvidences();
+    } catch (e: any) {
+      alert(`Erro: ${e.message}`);
+    } finally {
+      setIsReorganizing(false);
     }
   };
 
@@ -102,7 +149,13 @@ export default function AdaptarPage() {
         [gapIndex]: file.name,
       }));
 
-      // Recarrega a base de evidências para refletir o novo documento classificado pelo JEV
+      // Remove da marcação de "não possuo" se tinha marcado antes
+      setDeclaredAbsentGaps((prev) => {
+        const updated = { ...prev };
+        delete updated[gapIndex];
+        return updated;
+      });
+
       await loadRealEvidences();
     } catch (err: any) {
       alert(`Erro: ${err.message}`);
@@ -111,73 +164,56 @@ export default function AdaptarPage() {
     }
   };
 
-  // Reestruturação estritamente factual do currículo
-  const handleGenerateRestructuredCv = () => {
+  // Marcar lacuna como "Não possuo essa experiência/certificação"
+  const handleToggleAbsentGap = (gapIndex: number) => {
+    setDeclaredAbsentGaps((prev) => ({
+      ...prev,
+      [gapIndex]: !prev[gapIndex],
+    }));
+  };
+
+  // Reestruturação do currículo via Claude
+  const handleGenerateRestructuredCv = async () => {
     setIsRestructuring(true);
 
-    setTimeout(() => {
-      const name = candidateName || "Candidato";
-      const headerCrm = crmInfo ? ` • ${crmInfo}` : "";
+    try {
+      // Coleta os requisitos que o candidato expressamente marcou como "não possuo"
+      const declaredGapsList = stressTest?.criticalGaps
+        ? stressTest.criticalGaps.filter((_, idx) => declaredAbsentGaps[idx])
+        : [];
 
-      let text = `================================================================================\n`;
-      text += `${name.toUpperCase()}${headerCrm}\n`;
-      text += `ALVO: ${jobTitle.toUpperCase()}\n`;
-      text += `Adequação Factual NexoVitae (Auditada pelo Jev System One)\n`;
-      text += `================================================================================\n\n`;
-
-      text += `RESUMO PROFISSIONAL & ALINHAMENTO COM A OPORTUNIDADE\n`;
-      text += `--------------------------------------------------------------------------------\n`;
-      text += `Profissional com trajetória comprovada, aplicando qualificações auditadas para atender às demandas de ${jobTitle}. `;
-      text += `Todas as competências listadas abaixo correspondem a documentos e evidências reais validadas sem invenção de qualificações.\n\n`;
-
-      // Agrupa evidências por seção
-      const secoes: { [key: string]: EvidenceItem[] } = {};
-      evidences.forEach((ev) => {
-        const sec = ev.resume_section || "experiencia";
-        if (!secoes[sec]) secoes[sec] = [];
-        secoes[sec].push(ev);
+      const response = await fetch("/api/generate-cv", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobTitle,
+          jobText,
+          evidences,
+          candidateName,
+          crmInfo,
+          declaredGaps: declaredGapsList,
+        }),
       });
 
-      const sectionLabels: { [key: string]: string } = {
-        formacao: "FORMAÇÃO ACADÊMICA & RESIDÊNCIA MÉDICA",
-        experiencia: "EXPERIÊNCIA PROFISSIONAL & ATUAÇÃO PRÁTICA",
-        certificacoes: "CERTIFICAÇÕES & LICENÇAS COMPROVADAS",
-        cursos: "CURSOS & CAPACITAÇÕES ESPECÍFICAS",
-        projetos: "PROJETOS & INOVAÇÃO",
-        pesquisa_publicacoes: "PESQUISA CIENTÍFICA & PUBLICAÇÕES",
-      };
+      const data = await response.json();
 
-      Object.keys(secoes).forEach((secKey) => {
-        const label = sectionLabels[secKey] || secKey.toUpperCase();
-        text += `${label}\n`;
-        text += `--------------------------------------------------------------------------------\n`;
+      if (!response.ok) {
+        throw new Error(data.error || "Falha ao gerar o currículo.");
+      }
 
-        secoes[secKey].forEach((item) => {
-          text += `• ${item.title}\n`;
-          if (item.issuer_or_organization) {
-            text += `  Instituição / Emissor: ${item.issuer_or_organization}\n`;
-          }
-          if (item.description) {
-            text += `  Detalhes: ${item.description}\n`;
-          }
-          if (item.source_excerpt) {
-            text += `  [Evidência Comprovada: "${item.source_excerpt.substring(0, 120)}..."]\n`;
-          }
-          text += `\n`;
-        });
-      });
-
-      text += `\nTERMO DE CONFORMIDADE ÉTICA & CFM:\n`;
-      text += `Nenhum título de especialista (RQE) ou experiência profissional foi fabricado para esta candidatura. `;
-      text += `Currículo estruturado em conformidade com as resoluções de ética médica e validação documental.`;
-
-      setRestructuredCv(text);
-      setIsRestructuring(false);
+      setRestructuredCv(data.restructuredCv);
 
       setTimeout(() => {
         document.getElementById("cv-reestruturado")?.scrollIntoView({ behavior: "smooth" });
-      }, 150);
-    }, 600);
+      }, 200);
+    } catch (error: any) {
+      console.error(error);
+      alert(`Houve um erro ao processar o currículo: ${error.message || "Tente novamente."}`);
+    } finally {
+      setIsRestructuring(false);
+    }
   };
 
   const handleCopyCv = () => {
@@ -187,32 +223,142 @@ export default function AdaptarPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  // Contagem por categoria para as abas
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      todos: evidences.length,
+      formacao: 0,
+      experiencia: 0,
+      habilidades: 0,
+      idiomas: 0,
+      certificacoes: 0,
+      cursos: 0,
+      projetos: 0,
+      publicacoes: 0,
+    };
+
+    evidences.forEach((ev) => {
+      const sec = (ev.resume_section || "experiencia").toLowerCase();
+      if (sec === "formacao") counts.formacao++;
+      else if (sec === "idiomas" || ev.evidence_type === "idioma") counts.idiomas++;
+      else if (sec === "certificacoes" || ev.evidence_type === "certificacao_profissional" || ev.evidence_type === "registro_profissional") counts.certificacoes++;
+      else if (sec === "cursos" || ev.evidence_type === "curso_livre" || ev.evidence_type === "curso_aperfeicoamento") counts.cursos++;
+      else if (sec === "projetos" || ev.evidence_type === "projeto") counts.projetos++;
+      else if (sec === "pesquisa_publicacoes" || ev.evidence_type === "publicacao") counts.publicacoes++;
+      else if (ev.title.toLowerCase().includes("habilidade") || ev.title.toLowerCase().includes("skill") || ev.description?.toLowerCase().includes("raciocínio")) counts.habilidades++;
+      else counts.experiencia++;
+    });
+
+    return counts;
+  }, [evidences]);
+
+  // Filtragem das evidências para exibição
+  const filteredEvidences = useMemo(() => {
+    return evidences.filter((ev) => {
+      const sec = (ev.resume_section || "experiencia").toLowerCase();
+      const matchesSearch =
+        searchFilter.trim() === "" ||
+        ev.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        (ev.issuer_or_organization && ev.issuer_or_organization.toLowerCase().includes(searchFilter.toLowerCase())) ||
+        (ev.description && ev.description.toLowerCase().includes(searchFilter.toLowerCase()));
+
+      if (!matchesSearch) return false;
+
+      if (selectedCategory === "todos") return true;
+      if (selectedCategory === "formacao") return sec === "formacao";
+      if (selectedCategory === "idiomas") return sec === "idiomas" || ev.evidence_type === "idioma";
+      if (selectedCategory === "certificacoes") return sec === "certificacoes" || ev.evidence_type === "certificacao_profissional" || ev.evidence_type === "registro_profissional";
+      if (selectedCategory === "cursos") return sec === "cursos" || ev.evidence_type === "curso_livre" || ev.evidence_type === "curso_aperfeicoamento";
+      if (selectedCategory === "projetos") return sec === "projetos" || ev.evidence_type === "projeto";
+      if (selectedCategory === "publicacoes") return sec === "pesquisa_publicacoes" || ev.evidence_type === "publicacao";
+      if (selectedCategory === "habilidades") return ev.title.toLowerCase().includes("habilidade") || ev.description?.toLowerCase().includes("skill");
+      if (selectedCategory === "experiencia") return sec === "experiencia";
+
+      return true;
+    });
+  }, [evidences, selectedCategory, searchFilter]);
+
+  const getCategoryBadge = (section: string) => {
+    const s = section.toLowerCase();
+    if (s === "formacao") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <GraduationCap className="w-3 h-3" /> Formação
+        </span>
+      );
+    }
+    if (s === "idiomas" || s === "idioma") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200">
+          <Languages className="w-3 h-3" /> Idiomas
+        </span>
+      );
+    }
+    if (s === "certificacoes" || s === "certificacao_profissional") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          <Award className="w-3 h-3" /> Certificação
+        </span>
+      );
+    }
+    if (s === "cursos" || s === "curso_livre") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+          <BookOpen className="w-3 h-3" /> Curso
+        </span>
+      );
+    }
+    if (s === "projetos" || s === "projeto") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <FolderGit2 className="w-3 h-3" /> Projeto
+        </span>
+      );
+    }
+    if (s === "pesquisa_publicacoes" || s === "publicacao") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+          <FileCheck className="w-3 h-3" /> Publicação
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+        <Briefcase className="w-3 h-3" /> Experiência
+      </span>
+    );
+  };
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-20">
+    <div className="space-y-8 max-w-5xl mx-auto pb-24">
       {/* Botão de Voltar */}
-      <div>
+      <div className="flex items-center justify-between">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors bg-white px-3 py-1.5 rounded-xl border border-slate-200"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Voltar para o Teste de Estresse
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para Análise Inicial
         </Link>
+        <span className="text-xs font-medium text-slate-400">
+          SmartVitae • Pipeline Factual JEV + Claude
+        </span>
       </div>
 
-      {/* Cabeçalho do Estúdio */}
+      {/* Header do Estúdio */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              Estúdio de Adaptação Factual NexoVitae
+              Estúdio de Adaptação Factual
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Cruzamento de Dados & Adaptação do Currículo
+              Adequação de Currículo para a Vaga
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Vaga Alvo: <strong className="text-slate-800">{jobTitle}</strong>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Candidato: <strong className="text-slate-900">{candidateName || "Identificado"}</strong>
+              {crmInfo ? ` (${crmInfo})` : ""} • Vaga Alvo: <strong className="text-blue-700">{jobTitle}</strong>
             </p>
           </div>
 
@@ -223,7 +369,7 @@ export default function AdaptarPage() {
                   {stressTest.score}%
                 </div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">
-                  Aderência JEV
+                  Aderência Factual
                 </div>
               </div>
               <span className="text-xs font-black px-2.5 py-1 rounded-full uppercase bg-blue-600 text-white">
@@ -233,28 +379,122 @@ export default function AdaptarPage() {
           )}
         </div>
 
-        <div className="text-xs text-slate-600 leading-relaxed bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex items-start gap-2.5">
+        <div className="text-xs text-slate-600 leading-relaxed bg-blue-50/40 p-4 rounded-2xl border border-blue-100/80 flex items-start gap-3">
           <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <span>
-            <strong>Princípio de Zero Alucinação:</strong> O NexoVitae nunca inventará cargos, especialidades médicas ou
-            certificações. Abaixo, a IA cruza os dados do JEV com seus documentos reais e permite enviar certificados
-            específicos para suprir as lacunas antes de gerar a reestruturação final.
+            <strong>Conformidade Ética & Zero Alucinação:</strong> Os dados abaixo foram extraídos do seu documento,
+            filtrados pelo <strong>JEV</strong> e estruturados com precisão pelo <strong>Claude</strong>.
+            Nenhum CRM, experiência ou competência é inventada. Você pode suprir lacunas enviando certificados ou
+            declarar com honestidade os requisitos que não possui.
           </span>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. CRUZAMENTO DO JEV: SOLICITAÇÃO DE CERTIFICADOS PARA SUPRIR LACUNAS     */}
+      {/* DESTAQUE PRINCIPAL (HERO CTA): REESTRUTURAR O CURRÍCULO COM IA             */}
+      {/* ========================================================================= */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-7 sm:p-9 text-white shadow-xl shadow-indigo-950/20 border border-slate-800">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2.5 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              Recurso Principal da Plataforma
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Reestruturar Currículo Profissional com Claude 3.5 Sonnet
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              O cérebro da IA reorganiza suas evidências comprovadas no formato ATS ideal para <strong className="text-blue-200">{jobTitle}</strong>.
+              Ele destaca suas forças reais, conecta suas qualificações aos requisitos da vaga e respeita o código de ética sem qualquer alucinação.
+            </p>
+          </div>
+
+          <div className="shrink-0 flex flex-col sm:flex-row md:flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleGenerateRestructuredCv}
+              disabled={isRestructuring || evidences.length === 0}
+              className="inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-black shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-[0.98]"
+            >
+              {isRestructuring ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  <span>Claude está reestruturando...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                  <span>Reestruturar Currículo Factual Agora</span>
+                </>
+              )}
+            </button>
+            <span className="text-[11px] text-slate-400 text-center font-medium">
+              Baseado estritamente em {evidences.length} fatos auditados
+            </span>
+          </div>
+        </div>
+
+        {/* Bloco de Resultado do Currículo Gerado */}
+        {restructuredCv && (
+          <div id="cv-reestruturado" className="mt-8 pt-7 border-t border-slate-800/80 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+                  Currículo Pronto em Formato ATS de 1 Coluna (Texto Puro):
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyCv}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors cursor-pointer"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      Copiado com Sucesso!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-300" />
+                      Copiar Texto
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Imprimir / PDF
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-black/60 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-800 shadow-inner max-h-[550px] overflow-y-auto selection:bg-blue-600 selection:text-white">
+              {restructuredCv}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 1. SEÇÃO DE LACUNAS DA VAGA (GAPS): ADICIONAR OU DECLARAR AUSENTE         */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
+        <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4">
           <AlertTriangle className="w-5 h-5 text-amber-500" />
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              1. Lacunas Apontadas pelo Jev (Solicitação de Certificados)
+              1. Requisitos com Lacunas Identificados pelo JEV
             </h2>
             <p className="text-xs text-slate-500">
-              Envie certificados específicos para cobrir cada lacuna e elevar sua aderência factual.
+              Veja exatamente quais requisitos da vaga não foram encontrados no currículo. Adicione o comprovante ou clique em "Não possuo".
             </p>
           </div>
         </div>
@@ -263,42 +503,55 @@ export default function AdaptarPage() {
           <div className="space-y-4">
             {stressTest.criticalGaps.map((gap, index) => {
               const hasUploaded = uploadedGaps[index];
+              const isAbsent = declaredAbsentGaps[index];
               const isUploading = uploadingGapIndex === index;
 
               return (
                 <div
                   key={index}
-                  className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                  className={`p-5 rounded-2xl border transition-all ${
                     hasUploaded
-                      ? "bg-emerald-50/50 border-emerald-300"
-                      : "bg-slate-50 border-slate-200/90 hover:border-blue-400"
+                      ? "bg-emerald-50/60 border-emerald-300"
+                      : isAbsent
+                      ? "bg-slate-100/70 border-slate-300/80 opacity-90"
+                      : "bg-slate-50 border-slate-200 hover:border-blue-300"
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="space-y-1">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="space-y-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center">
+                        <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-800 text-xs font-extrabold flex items-center justify-center">
                           {index + 1}
                         </span>
-                        <span className="text-xs font-bold text-slate-800">
-                          Requisito com Lacuna Documental
+                        <span className="text-xs font-bold text-slate-700">
+                          Requisito Ausente no Currículo Original:
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600 font-medium pl-8">
+                      
+                      <p className="text-xs sm:text-sm text-slate-800 font-semibold pl-8 leading-snug">
                         {gap}
                       </p>
+
                       {hasUploaded && (
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 pl-8 pt-1">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span>Certificado vinculado e classificado pelo Jev: <strong>{hasUploaded}</strong></span>
+                          <span>Comprovante auditado: <strong>{hasUploaded}</strong></span>
+                        </div>
+                      )}
+
+                      {isAbsent && (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 pl-8 pt-1">
+                          <XCircle className="w-4 h-4 text-slate-500" />
+                          <span>Marcado: <strong>Não possuo essa qualificação</strong> (O Claude não forçará este ponto)</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Botão de Envio de Certificado para esta Lacuna */}
-                    <div className="shrink-0 pl-8 sm:pl-0">
+                    {/* Ações da Lacuna: Upload vs Não Possuo */}
+                    <div className="shrink-0 flex flex-wrap sm:flex-nowrap items-center gap-2 pl-8 lg:pl-0">
+                      {/* Botão de Enviar Certificado */}
                       <label
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
+                        className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs ${
                           isUploading
                             ? "bg-slate-200 text-slate-500 cursor-not-allowed"
                             : hasUploaded
@@ -309,17 +562,17 @@ export default function AdaptarPage() {
                         {isUploading ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Analisando com Jev...
+                            Analisando com JEV...
                           </>
                         ) : hasUploaded ? (
                           <>
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            Substituir Certificado
+                            Substituir
                           </>
                         ) : (
                           <>
                             <UploadCloud className="w-3.5 h-3.5" />
-                            Enviar Certificado em PDF
+                            Adicionar Certificado
                           </>
                         )}
                         <input
@@ -333,6 +586,31 @@ export default function AdaptarPage() {
                           }}
                         />
                       </label>
+
+                      {/* Botão Não Possuo essa Experiência */}
+                      {!hasUploaded && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAbsentGap(index)}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                            isAbsent
+                              ? "bg-slate-800 text-white border-slate-800 hover:bg-slate-700"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {isAbsent ? (
+                            <>
+                              <RotateCcw className="w-3.5 h-3.5 text-slate-300" />
+                              Desfazer Marcação
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                              Não Possuo
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -348,150 +626,208 @@ export default function AdaptarPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. BASE DE EVIDÊNCIAS REAIS EXTRAÍDAS (ZERO INVENÇÃO)                     */}
+      {/* 2. BASE DE EVIDÊNCIAS ESTRUTURADA POR INTELIGÊNCIA (TABELA / ABAS)        */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div className="flex items-center gap-2.5">
             <Database className="w-5 h-5 text-blue-600" />
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                2. Evidências Reais Cadastradas ({evidences.length})
+                2. Base de Dados Estruturada por Inteligência ({evidences.length} fatos)
               </h2>
               <p className="text-xs text-slate-500">
-                Somente os fatos comprovados extraídos do seu currículo e certificados enviados.
+                Fatos auditados e organizados pelo Claude e JEV em categorias reais (Zero Frases Soltas).
               </p>
             </div>
           </div>
 
-          <Link
-            href="/evidencias"
-            className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
-          >
-            Ver toda a Base de Evidências →
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReorganizeWithClaude}
+              disabled={isReorganizing || evidences.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isReorganizing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Filtrando com Claude...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+                  Refiltrar com Claude
+                </>
+              )}
+            </button>
+
+            <Link
+              href="/evidencias"
+              className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors ml-2"
+            >
+              Auditoria Completa →
+            </Link>
+          </div>
         </div>
 
-        {evidences.length === 0 ? (
-          <div className="p-8 text-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 text-xs space-y-2">
-            <Database className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="font-semibold text-slate-700">Nenhuma evidência extraída ainda.</p>
-            <p>Envie seu currículo ou certificados para que o JEV classifique os fatos comprovados.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {evidences.map((ev) => (
-              <div
-                key={ev.id}
-                className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 space-y-1.5 shadow-2xs"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-900 truncate">
-                    {ev.title}
-                  </span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 capitalize shrink-0">
-                    {ev.resume_section}
-                  </span>
-                </div>
-
-                {ev.issuer_or_organization && (
-                  <div className="text-[11px] font-medium text-slate-600">
-                    {ev.issuer_or_organization}
-                  </div>
-                )}
-
-                {ev.source_excerpt && (
-                  <p className="text-[11px] text-slate-500 italic line-clamp-2">
-                    "{ev.source_excerpt}"
-                  </p>
-                )}
-
-                <div className="pt-1 flex items-center gap-2 text-[10px] text-slate-400">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>Classificado pelo JEV • Fato Comprovado</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 3. REESTRUTURAR CURRÍCULO COM BASE NAS EVIDÊNCIAS REAIS                   */}
-      {/* ========================================================================= */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                3. Reestruturação do Currículo para a Vaga
-              </h2>
-              <p className="text-xs text-slate-500">
-                Reorganiza o seu currículo em formato ATS de 1 coluna usando estritamente suas evidências reais.
-              </p>
-            </div>
-          </div>
-
+        {/* Abas de Categorias */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
           <button
             type="button"
-            onClick={handleGenerateRestructuredCv}
-            disabled={isRestructuring || evidences.length === 0}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            onClick={() => setSelectedCategory("todos")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "todos"
+                ? "bg-slate-900 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
           >
-            {isRestructuring ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Reestruturando com Fatos Reais...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Reestruturar Currículo Factual
-              </>
-            )}
+            Todos ({categoryCounts.todos})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("formacao")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "formacao"
+                ? "bg-emerald-600 text-white"
+                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+            }`}
+          >
+            Formação ({categoryCounts.formacao})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("experiencia")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "experiencia"
+                ? "bg-blue-600 text-white"
+                : "bg-blue-50 text-blue-800 hover:bg-blue-100"
+            }`}
+          >
+            Experiência ({categoryCounts.experiencia})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("certificacoes")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "certificacoes"
+                ? "bg-amber-600 text-white"
+                : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+            }`}
+          >
+            Certificações ({categoryCounts.certificacoes})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("idiomas")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "idiomas"
+                ? "bg-cyan-600 text-white"
+                : "bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+            }`}
+          >
+            Idiomas ({categoryCounts.idiomas})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("cursos")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "cursos"
+                ? "bg-purple-600 text-white"
+                : "bg-purple-50 text-purple-800 hover:bg-purple-100"
+            }`}
+          >
+            Cursos ({categoryCounts.cursos})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("projetos")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "projetos"
+                ? "bg-indigo-600 text-white"
+                : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+            }`}
+          >
+            Projetos ({categoryCounts.projetos})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedCategory("publicacoes")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              selectedCategory === "publicacoes"
+                ? "bg-rose-600 text-white"
+                : "bg-rose-50 text-rose-800 hover:bg-rose-100"
+            }`}
+          >
+            Publicações ({categoryCounts.publicacoes})
           </button>
         </div>
 
-        {restructuredCv && (
-          <div id="cv-reestruturado" className="space-y-4 pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Currículo Adaptado Pronto (Formato ATS Texto Puro / 1 Coluna):
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleCopyCv}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-100 shadow-sm transition-colors cursor-pointer"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      Copiado!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      Copiar Texto
-                    </>
-                  )}
-                </button>
+        {/* Campo de Busca Rápida */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Buscar por cargo, competência ou instituição..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          />
+        </div>
 
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 shadow-sm transition-colors cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Imprimir / PDF
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-slate-900 text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-800 shadow-inner max-h-[500px] overflow-y-auto">
-              {restructuredCv}
-            </div>
+        {/* Tabela Estruturada de Evidências */}
+        {filteredEvidences.length === 0 ? (
+          <div className="p-8 text-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-500 text-xs space-y-2">
+            <Database className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="font-semibold text-slate-700">Nenhum fato encontrado nesta categoria.</p>
+            <p>Selecione "Todos" ou reestruture a base com o Claude.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3 px-4">Categoria</th>
+                  <th className="py-3 px-4">Qualificação / Título</th>
+                  <th className="py-3 px-4">Instituição / Emissor</th>
+                  <th className="py-3 px-4">Detalhamento Factual Comprovado</th>
+                  <th className="py-3 px-4 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {filteredEvidences.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-blue-50/20 transition-colors">
+                    <td className="py-3.5 px-4 align-top whitespace-nowrap">
+                      {getCategoryBadge(ev.resume_section || ev.evidence_type)}
+                    </td>
+                    <td className="py-3.5 px-4 align-top">
+                      <div className="font-bold text-slate-900 leading-snug">
+                        {ev.title}
+                      </div>
+                      {ev.start_date && (
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {ev.start_date}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 align-top text-slate-700 font-medium">
+                      {ev.issuer_or_organization || "—"}
+                    </td>
+                    <td className="py-3.5 px-4 align-top text-slate-600 max-w-md">
+                      <p className="line-clamp-2 leading-relaxed">
+                        {ev.description || ev.source_excerpt || "Sem detalhamento adicional."}
+                      </p>
+                    </td>
+                    <td className="py-3.5 px-4 align-top text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Comprovado
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

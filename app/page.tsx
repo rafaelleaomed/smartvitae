@@ -43,105 +43,7 @@ export default function HomePage() {
 
   const jobTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Demo 1: Caso SHIP (Médico x Inovação Clínica)
-  const handleLoadInnovationDemo = () => {
-    setResumeFile(null);
-    setActiveDemo("innovation");
-    setErrorMessage(null);
-    setNeedsManualJobText(false);
-    setResumeText(`Dr. Rafael Leão
-Médico | Inovação em Saúde & Tecnologias Clínicas
-CRM 123456-SP • RQE 65432
-
-Experiência Profissional
-Médico Assistente e Pesquisador Clínico
-Hospital das Clínicas da FMUSP
-2021 - Presente
-- Atuação em protocolos clínicos, saúde digital e incorporação de IA em rotinas hospitalares.
-- Condução de testes de validação clínica para sistemas de apoio à decisão diagnóstica.
-
-Residência Médica em Clínica Médica (CNRM)
-Hospital das Clínicas da FMUSP
-2019 - 2021
-- Rotações em UTI, emergência e gestão de fluxos de pacientes de alta complexidade.
-
-Formação Acadêmica
-Faculdade de Medicina da USP
-Graduação em Medicina
-2013 - 2018
-
-Licenças e Certificações
-Generative AI for Healthcare Professional Badge
-Google Cloud & DeepLearning.AI
-
-Suporte Avançado de Vida Cardiovascular (ACLS)
-American Heart Association`);
-
-    setJobUrl("https://healthtech.gupy.io/job/gerente-medico-inovacao");
-    setJobText(`Vaga: Gerente Médico de Inovação e Saúde Digital
-Empresa: Healthtech Brasil
-Local: São Paulo, SP (Modelo Híbrido)
-
-Responsabilidades:
-- Liderar a avaliação clínica de modelos de Inteligência Artificial e prontuários eletrônicos.
-- Atuar como ponte técnica entre médicos assistentes, cientistas de dados e time de produto.
-- Garantir a conformidade ética e regulatória (CFM/LGPD) em todas as soluções clínicas.
-
-Requisitos Obrigatórios:
-- Graduação completa em Medicina com registro ativo (CRM).
-- Residência médica reconhecida ou experiência assistencial sólida.
-- Conhecimento demonstrável em inteligência artificial generativa aplicada à saúde.
-- Habilidade comprovada em liderança de projetos e visão de produto clínico.
-
-Diferenciais:
-- Certificações em Cloud ou AI em Saúde.
-- Experiência prévia em hospitais de ponta ou startups.`);
-  };
-
-  // Demo 2: Caso KILL (Médico x Vendedor Comercial de Veículos)
-  const handleLoadSalesDemo = () => {
-    setResumeFile(null);
-    setActiveDemo("sales");
-    setErrorMessage(null);
-    setNeedsManualJobText(false);
-    setResumeText(`Dr. Rafael Leão
-Médico | Inovação em Saúde & Tecnologias Clínicas
-CRM 123456-SP • RQE 65432
-
-Experiência Profissional
-Médico Assistente e Pesquisador Clínico
-Hospital das Clínicas da FMUSP
-2021 - Presente
-- Atuação em protocolos clínicos, saúde digital e incorporação de IA em rotinas hospitalares.
-
-Residência Médica em Clínica Médica (CNRM)
-Hospital das Clínicas da FMUSP
-2019 - 2021
-
-Formação Acadêmica
-Faculdade de Medicina da USP
-Graduação em Medicina (2013 - 2018)`);
-
-    setJobUrl("https://vagas.gupy.io/job/vendedor-concessionaria-veiculos");
-    setJobText(`Vaga: Consultor de Vendas / Vendedor de Veículos Novos
-Empresa: Rede de Concessionárias AutoMax
-Local: São Paulo, SP
-
-Atividades e Responsabilidades:
-- Atendimento direto a clientes no showroom da concessionária de automóveis.
-- Prospecção ativa de novos clientes via cold call, WhatsApp comercial e eventos de rua.
-- Negociação agressiva de taxas de financiamento bancário de automóveis e cotas de consórcio.
-- Atingimento mensal de metas rigorosas de volume de vendas de carros e ticket médio.
-- Realização de test-drive e fechamento de contratos comerciais de compra e venda.
-
-Requisitos Obrigatórios:
-- Experiência mínima comprovada de 2 anos em vendas de balcão ou no setor automotivo.
-- CNH categoria B válida e ativa.
-- Domínio prático de técnicas de negociação comercial, funil de vendas e CRM comercial (Salesforce/Hubspot).
-- Ensino Médio completo ou Superior em Gestão Comercial.`);
-  };
-
-  // Limpar formulário
+  
   const handleReset = () => {
     setResumeFile(null);
     setResumeText("");
@@ -186,7 +88,7 @@ Requisitos Obrigatórios:
           }, 300);
           return;
         }
-        throw new Error(data.error || "Falha na análise da vaga pelo NexoVitae.");
+        throw new Error(data.error || "Falha na análise da vaga pelo SmartVitae.");
       }
 
       setStressTest(data.stressTest);
@@ -195,6 +97,10 @@ Requisitos Obrigatórios:
 
       // Armazena contexto para a página de adaptação
       if (data.canAdapt) {
+        sessionStorage.setItem("smartvitae_job_title", data.jobTitle || "Vaga Pretendida");
+        sessionStorage.setItem("smartvitae_job_text", data.jobText || jobText);
+        sessionStorage.setItem("smartvitae_stress_test", JSON.stringify(data.stressTest));
+        // Manter fallback por compatibilidade
         sessionStorage.setItem("nexovitae_job_title", data.jobTitle || "Vaga Pretendida");
         sessionStorage.setItem("nexovitae_job_text", data.jobText || jobText);
         sessionStorage.setItem("nexovitae_stress_test", JSON.stringify(data.stressTest));
@@ -215,48 +121,26 @@ Requisitos Obrigatórios:
   return (
     <div className="space-y-10 max-w-5xl mx-auto pb-16">
       {/* Cabeçalho Focado no Fluxo Direto */}
-      <div className="text-center space-y-3 pt-2">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>NexoVitae • Motor de Decisão Jev (System One)</span>
+      <div className="text-center space-y-3 pt-2 px-1">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 text-white text-xs font-semibold shadow-sm max-w-full">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="truncate">SmartVitae • Motor de Decisão Jev (System One)</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight break-words">
           Jogue seu currículo. Jogue a vaga.
         </h1>
-        <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-          O <strong>NexoVitae</strong> avalia a correlação factual entre seu histórico e a vaga
-          através do <strong>Jev (TypeSafe AI)</strong> em 6 dimensões rigorosas (estilo <em>KillMyIdea</em>).
+        <p className="text-slate-600 text-xs sm:text-base max-w-2xl mx-auto leading-relaxed">
+          O <strong>SmartVitae</strong> avalia a correlação factual entre seu histórico e a vaga
+          através do <strong>Jev (TypeSafe AI)</strong> em 6 dimensões rigorosas.
           Zero alucinação, zero falsas esperanças: se não der match, você recebe um veredito transparente.
         </p>
 
         {/* Banners de Teste Rápido */}
         <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-          <button
-            type="button"
-            onClick={handleLoadInnovationDemo}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeDemo === "innovation"
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Testar Caso SHIP (Médico x Inovação)
-          </button>
+          
 
-          <button
-            type="button"
-            onClick={handleLoadSalesDemo}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeDemo === "sales"
-                ? "bg-rose-600 text-white border-rose-600 shadow-sm"
-                : "bg-rose-50 text-rose-800 border-rose-200 hover:bg-rose-100"
-            }`}
-          >
-            <AlertOctagon className="w-3.5 h-3.5" />
-            Testar Caso KILL (Médico x Vendedor)
-          </button>
+          
 
           {(resumeText || jobText || resumeFile) && (
             <button
@@ -468,39 +352,39 @@ Requisitos Obrigatórios:
       </div>
 
       {/* Botão de Ação Central */}
-      <div className="text-center pt-2">
+      <div className="text-center pt-2 px-1">
         <button
           type="button"
           onClick={handleRunAdaptation}
           disabled={isProcessing || (!resumeFile && resumeText.trim().length < 15)}
-          className="inline-flex items-center gap-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white font-bold px-8 py-4 rounded-2xl shadow-xl shadow-slate-900/20 text-base transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-950 hover:from-slate-800 hover:to-indigo-900 text-white font-bold px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl shadow-xl shadow-slate-900/20 text-sm sm:text-base transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
           {isProcessing ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Submetendo ao Teste de Estresse do JEV (System One)...
+              Submetendo ao Teste de Estresse do JEV...
             </>
           ) : (
             <>
               <Sparkles className="w-5 h-5 text-amber-400" />
-              Analisar Aderência com Jev (Estilo KillMyIdea)
+              Analisar Aderência com Jev 
               <ArrowRight className="w-5 h-5" />
             </>
           )}
         </button>
-        <p className="text-xs text-slate-400 mt-2">
+        <p className="text-[11px] sm:text-xs text-slate-400 mt-2">
           Travas CFM & Anti-Alucinação: se o perfil for incompatível, a adaptação mentirosa é bloqueada.
         </p>
       </div>
 
       {/* ========================================================================= */}
-      {/* SEÇÃO DE RESULTADOS: DIAGNÓSTICO JEV KILLMYIDEA                           */}
+      {/* SEÇÃO DE RESULTADOS: DIAGNÓSTICO JEV                           */}
       {/* ========================================================================= */}
       {stressTest && (
         <div id="resultado-adaptacao" className="space-y-8 pt-6 border-t border-slate-200">
           {/* Card do Veredito Geral */}
           <div
-            className={`rounded-3xl border-2 p-6 sm:p-8 shadow-sm transition-all ${
+            className={`rounded-3xl border-2 p-5 sm:p-8 shadow-sm transition-all ${
               stressTest.verdict === "kill"
                 ? "bg-rose-50/60 border-rose-300"
                 : stressTest.verdict === "fix"
@@ -535,7 +419,7 @@ Requisitos Obrigatórios:
                   </span>
                 </div>
 
-                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                   {stressTest.verdict === "kill" && "Candidatura Não Recomendada (Desalinhada)"}
                   {stressTest.verdict === "fix" && "Candidatura Parcial (Requer Ajuste de Lacunas)"}
                   {stressTest.verdict === "ship" && "Candidatura Altamente Aderente (Aprovada para Envio)"}
@@ -547,8 +431,8 @@ Requisitos Obrigatórios:
               </div>
 
               {/* Score Circular / Gauge */}
-              <div className="flex items-center gap-4 bg-white/80 p-4 rounded-2xl border border-black/5 shadow-sm shrink-0">
-                <div className="text-right">
+              <div className="flex items-center justify-between sm:justify-start gap-4 bg-white/80 p-4 rounded-2xl border border-black/5 shadow-sm w-full sm:w-auto shrink-0">
+                <div className="text-left sm:text-right">
                   <div
                     className={`text-3xl sm:text-4xl font-black ${
                       stressTest.verdict === "kill"
@@ -564,7 +448,7 @@ Requisitos Obrigatórios:
                     Aderência Real
                   </div>
                 </div>
-                <div className="border-l border-slate-200 pl-3 text-[10px] text-slate-500 space-y-0.5">
+                <div className="border-l border-slate-200 pl-3 text-[10px] text-slate-500 space-y-0.5 text-right sm:text-left">
                   <div><strong>Motor:</strong> Jev System One</div>
                   <div><strong>Modelo:</strong> {stressTest.model}</div>
                   <div><strong>Latência:</strong> {stressTest.latencyMs}ms</div>
@@ -697,17 +581,17 @@ Requisitos Obrigatórios:
           {/* AÇÃO PÓS-VEREDITO: BLOQUEIO OU BOTÃO "ADAPTAR CURRÍCULO"                   */}
           {/* ========================================================================= */}
           {!canAdapt || stressTest.verdict === "kill" ? (
-            <div className="rounded-3xl border-2 border-slate-300 bg-slate-900 text-white p-8 text-center space-y-4 shadow-lg">
+            <div className="rounded-3xl border-2 border-slate-300 bg-slate-900 text-white p-6 sm:p-8 text-center space-y-4 shadow-lg">
               <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mx-auto text-amber-400">
                 <Lock className="w-6 h-6" />
               </div>
               <div className="space-y-2 max-w-xl mx-auto">
-                <h3 className="text-xl font-bold tracking-tight">
-                  Adaptação de Currículo Bloqueada pelo NexoVitae
+                <h3 className="text-lg sm:text-xl font-bold tracking-tight">
+                  Adaptação de Currículo Bloqueada pelo SmartVitae
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
                   Para proteger sua credibilidade perante recrutadores e respeitar o código de ética
-                  profissional (CFM/Conselhos Profissionais), o <strong>NexoVitae recusa-se a fabricar
+                  profissional (CFM/Conselhos Profissionais), o <strong>SmartVitae recusa-se a fabricar
                   experiências fictícias</strong> para vagas que não correspondem ao seu perfil.
                 </p>
                 <p className="text-xs text-slate-400">
@@ -717,20 +601,13 @@ Requisitos Obrigatórios:
               </div>
 
               <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={handleLoadInnovationDemo}
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Ver Demonstração de Vaga Compatível (SHIP)
-                </button>
+                
               </div>
             </div>
           ) : (
             /* Botão Solicitado: Adaptar currículo */
-            <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-7 sm:p-9 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 border border-slate-800">
-              <div className="space-y-2 text-left">
+            <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-6 sm:p-9 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 border border-slate-800">
+              <div className="space-y-2 text-center md:text-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-400/30">
                   <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                   Candidatura Viável Factualmente
@@ -747,7 +624,7 @@ Requisitos Obrigatórios:
 
               <Link
                 href="/adaptar"
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 shrink-0"
+                className="w-full md:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 shrink-0"
               >
                 <Sparkles className="w-4 h-4" />
                 Adaptar Currículo

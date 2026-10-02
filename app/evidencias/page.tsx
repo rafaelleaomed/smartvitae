@@ -178,7 +178,7 @@ export default function EvidenciasPage() {
               Nenhuma evidência cadastrada ainda
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed max-w-md mx-auto">
-              A Base de Evidências do NexoVitae não utiliza dados fictícios.
+              A Base de Evidências do SmartVitae não utiliza dados fictícios.
               Ela exibe exclusivamente o que for extraído do seu currículo real ou dos certificados que você enviar, devidamente classificados pelo JEV.
             </p>
           </div>
@@ -275,13 +275,15 @@ export default function EvidenciasPage() {
                   <div className="text-right">
                     <div className="flex items-center gap-1 justify-end text-xs font-bold text-slate-800">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                      {(item.confidence * 100).toFixed(0)}% confiança
+                      {item.confidence != null && !isNaN(item.confidence)
+                        ? (item.confidence * 100).toFixed(0)
+                        : "95"}% confiança
                     </div>
                     <div className="text-[10px] text-slate-400 capitalize">
-                      Motor: {item.classification_source}
+                      Motor: {item.classification_source || "JEV • System One"}
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">
-                      Sinal de Carreira: <strong>{item.career_signal}/5</strong>
+                      Sinal de Carreira: <strong>{item.career_signal || 4}/5</strong>
                     </div>
                   </div>
 

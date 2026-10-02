@@ -149,9 +149,16 @@ export async function POST(req: NextRequest) {
     const sanitizedResume = sanitizeTextForAI(resumeText);
     const sanitizedJob = sanitizeTextForAI(extractedJobText);
 
-    // 4. Extração Factual das Evidências Reais do Currículo (Zero Invenção de CRM/RQE)
-    const { parseCvTextToEvidences } = await import("@/services/extraction/cv-section-parser");
-    const parsedCv = parseCvTextToEvidences(resumeText);
+    // 4. Estruturação Inteligente via Claude (Filtragem de Ruídos e Organização em Categorias)
+    let parsedCv;
+    try {
+      const { structureResumeWithClaude } = await import("@/services/ai/claude-service");
+      parsedCv = await structureResumeWithClaude(resumeText);
+    } catch (e: any) {
+      console.warn("Fallback para extrator determinístico regex:", e.message);
+      const { parseCvTextToEvidences } = await import("@/services/extraction/cv-section-parser");
+      parsedCv = parseCvTextToEvidences(resumeText);
+    }
 
     // Atualiza o perfil estritamente com os dados declarados pelo usuário
     localStore.updateProfile(DEMO_USER_ID, {
@@ -161,12 +168,12 @@ export async function POST(req: NextRequest) {
       rqe_numbers: parsedCv.rqeNumbers,
     });
 
-    // Popula a Base de Evidências com os fatos reais extraídos do currículo
+    // Popula a Base de Evidências com os fatos estruturados
     if (parsedCv.evidences.length > 0) {
       localStore.setEvidences(parsedCv.evidences);
     }
 
-    // 5. Executa o Teste de Estresse Jev Multi-Dimensional (Inspirado no KillMyIdea)
+
     const stressTest: StressTestResult = await runJevStressTest(
       sanitizedResume.sanitizedText,
       sanitizedJob.sanitizedText,
@@ -183,7 +190,7 @@ export async function POST(req: NextRequest) {
         canAdapt: false,
         jobTitle,
         message:
-          "Veredito KILL: O NexoVitae identificou que seu perfil é frontalmente desalinhado com esta vaga. Adaptação bloqueada para evitar alucinação.",
+          "Veredito KILL: O SmartVitae identificou que seu perfil é frontalmente desalinhado com esta vaga. Adaptação bloqueada para evitar alucinação.",
       });
     }
 
