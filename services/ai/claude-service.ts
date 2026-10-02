@@ -357,3 +357,87 @@ Gere o currículo completo, altamente polido, pronto para uso e visualmente equi
     useSonnet: false, // Haiku 4.5 gera rápido, bonito e sem estourar cota!
   });
 }
+
+export interface CandidateFitAudit {
+  matchedSkills: string[];
+  missingGaps: string[];
+  detailedDiagnosis: string;
+  roadmap: string[];
+  scores: {
+    profession_fit: number; // 0 a 4
+    mandatory_skills: number; // 0 a 4
+    daily_activities: number; // 0 a 4
+    fabrication_risk: number; // 0 a 4
+    industry_fit: number; // 0 a 4
+    experience_depth: number; // 0 a 4
+  };
+  verdict: "ship" | "fix" | "kill";
+}
+
+/**
+ * Auditoria profunda de compatibilidade e lacunas com Claude
+ * Lista exatamente QUAIS requisitos foram atendidos e QUAIS faltam
+ */
+export async function auditCandidateFitWithClaude(
+  candidateProfile: string,
+  targetJob: string
+): Promise<CandidateFitAudit> {
+  const systemPrompt = `Você é o auditor sênior de compatibilidade profissional da plataforma SmartVitae.
+Sua missão: Cruzar rigorosamente o perfil do candidato com a vaga pretendida (independente de estar em português ou inglês) e gerar uma auditoria profunda, honesta e sem alucinações.
+
+REGRAS:
+1. Analise equivalências técnicas e profissionais (ex: "Degree in Medicine" e "Médico Clínico Geral com CRM" são equivalentes diretos).
+2. "matchedSkills": Liste os requisitos e competências da vaga COMPROVADOS no currículo (com detalhes concretos).
+3. "missingGaps": Liste com nome e sobrenome os requisitos e competências da vaga AUSENTES ou com lacuna no currículo (especifique com precisão QUAI são as competências, ferramentas ou experiências que faltam).
+4. "detailedDiagnosis": Diagnóstico aprofundado e sincero explicando o alinhamento real entre o histórico e as exigências da oportunidade.
+5. "roadmap": Passos práticos, realistas e específicos para essa vaga.
+6. Atribua notas realistas de 0 a 4 nas 6 dimensões.
+7. Veredito final estrito:
+   - "kill": Perfil totalmente discrepante (ex: Médico para Vendedor de Automóveis, Engenheiro Civil para Cirurgião).
+   - "fix": Perfil na mesma área ou adjacente, mas com lacunas específicas que precisam ser justificadas ou supridas.
+   - "ship": Forte alinhamento nas qualificações centrais da vaga.
+
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "matchedSkills": ["Requisito atendido 1...", "Requisito atendido 2..."],
+  "missingGaps": ["Competência ou ferramenta faltante específica..."],
+  "detailedDiagnosis": "Texto aprofundado do diagnóstico...",
+  "roadmap": ["Passo 1...", "Passo 2..."],
+  "scores": {
+    "profession_fit": 0.0 a 4.0,
+    "mandatory_skills": 0.0 a 4.0,
+    "daily_activities": 0.0 a 4.0,
+    "fabrication_risk": 0.0 a 4.0,
+    "industry_fit": 0.0 a 4.0,
+    "experience_depth": 0.0 a 4.0
+  },
+  "verdict": "ship" | "fix" | "kill"
+}`;
+
+  const userPrompt = `CURRÍCULO DO CANDIDATO:\n${candidateProfile.substring(0, 4000)}\n\nVAGA PRETENDIDA:\n${targetJob.substring(0, 4000)}`;
+
+  const responseText = await callClaude(systemPrompt, userPrompt, {
+    maxTokens: 1200,
+    temperature: 0.1,
+    json: true,
+  });
+
+  const parsed = extractJsonFromText(responseText);
+
+  return {
+    matchedSkills: Array.isArray(parsed.matchedSkills) ? parsed.matchedSkills : [],
+    missingGaps: Array.isArray(parsed.missingGaps) ? parsed.missingGaps : [],
+    detailedDiagnosis: parsed.detailedDiagnosis || "Diagnóstico concluído com base nas evidências comprovadas.",
+    roadmap: Array.isArray(parsed.roadmap) ? parsed.roadmap : [],
+    scores: {
+      profession_fit: Number(parsed.scores?.profession_fit ?? 2.5),
+      mandatory_skills: Number(parsed.scores?.mandatory_skills ?? 2.5),
+      daily_activities: Number(parsed.scores?.daily_activities ?? 2.0),
+      fabrication_risk: Number(parsed.scores?.fabrication_risk ?? 3.0),
+      industry_fit: Number(parsed.scores?.industry_fit ?? 2.5),
+      experience_depth: Number(parsed.scores?.experience_depth ?? 2.5),
+    },
+    verdict: parsed.verdict === "ship" || parsed.verdict === "fix" || parsed.verdict === "kill" ? parsed.verdict : "fix",
+  };
+}
+

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 async function scrapeJobPage(url: string): Promise<string> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeout = setTimeout(() => controller.abort(), 7000);
 
     const res = await fetch(url, {
       headers: {
@@ -45,32 +45,54 @@ async function scrapeJobPage(url: string): Promise<string> {
           const title = jsonLd.title || "";
           const desc = (jsonLd.description || "").replace(/<[^>]+>/g, " ");
           const reqs = jsonLd.qualifications || jsonLd.skills || "";
-          return `Vaga: ${title}\n\nDescrição e Requisitos:\n${desc} ${reqs}`.trim();
+          const full = `Vaga: ${title}\n\nDescrição e Requisitos:\n${desc} ${reqs}`.trim();
+          if (full.length > 100) return full;
         }
       } catch (e) {
-        // segue para outros métodos
+        // segue para seletores de DOM
       }
     }
 
-    // 2. Extrai OpenGraph e Meta Description
-    const titleMatch = html.match(/<title>(.*?)<\/title>/i) || html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["'](.*?)["']/i);
-    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["'](.*?)["']/i) || html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["'](.*?)["']/i);
+    // 2. Seletores específicos de plataformas de vagas (LinkedIn, Gupy, Glassdoor, etc.)
+    const jobMarkupSelectors = [
+      /class="show-more-less-html__markup[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /class="description__text[^"]*"[^>]*>([\s\S]*?)<\/section>/i,
+      /<div[^>]*class="[^"]*decorated-job-posting__details[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*data-testid="job-description"[^>]*>([\s\S]*?)<\/div>/i,
+      /<div[^>]*class="[^"]*job-description[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    ];
 
-    // 3. Remove scripts, styles e tags para pegar o texto visível
-    const cleanBody = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const titleMatch =
+      html.match(/<title>(.*?)<\/title>/i) ||
+      html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["'](.*?)["']/i);
+    const cleanTitle = titleMatch
+      ? titleMatch[1].replace(/ \| LinkedIn.*| - Gupy.*| - Vagas.*/, "").trim()
+      : "Vaga Pretendida";
 
-    if (cleanBody.length > 250) {
-      // Pega trecho substancial da página
-      return `Vaga: ${titleMatch ? titleMatch[1] : ""}\n\n${descMatch ? descMatch[1] : ""}\n\n${cleanBody.substring(0, 3500)}`;
+    for (const regex of jobMarkupSelectors) {
+      const match = html.match(regex);
+      if (match && match[1]) {
+        const cleanText = match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (cleanText.length > 80 && !cleanText.includes("Nunca usou o LinkedIn?")) {
+          return `Vaga: ${cleanTitle}\n\nDescrição e Requisitos:\n${cleanText}`;
+        }
+      }
     }
 
-    if (titleMatch || descMatch) {
-      return `Vaga: ${titleMatch ? titleMatch[1] : ""}\nDescrição: ${descMatch ? descMatch[1] : ""}`;
+    // 3. Fallback para OpenGraph e Meta Description
+    const descMatch =
+      html.match(/<meta[^>]*name=["']description["'][^>]*content=["'](.*?)["']/i) ||
+      html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["'](.*?)["']/i);
+    const metaDesc = descMatch ? descMatch[1].replace(/<[^>]+>/g, " ").trim() : "";
+
+    // 4. Se caiu em tela de login/cookies do LinkedIn, rejeita para pedir texto manual
+    const isBlockedByLogin = html.includes("d_jobs_guest_details") && !html.includes("show-more-less-html__markup");
+    if (isBlockedByLogin && (!metaDesc || metaDesc.length < 50)) {
+      return "";
+    }
+
+    if (metaDesc.length > 100 && !metaDesc.includes("Faça login")) {
+      return `Vaga: ${cleanTitle}\n\nResumo da Oportunidade:\n${metaDesc}`;
     }
 
     return "";

@@ -532,20 +532,41 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Lacunas Críticas (Gaps) */}
+            {/* Requisitos Comprovados no Currículo */}
+            {stressTest.matchedSkills && stressTest.matchedSkills.length > 0 && (
+              <div className="pt-6 space-y-3">
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Requisitos e Competências Comprovados no seu Histórico:
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {stressTest.matchedSkills.map((skill, i) => (
+                    <div
+                      key={i}
+                      className="p-3 rounded-xl bg-white/90 border border-emerald-200/80 text-xs text-slate-700 flex items-start gap-2 shadow-xs"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                      <span className="font-medium">{skill}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lacunas Críticas (Gaps Específicos) */}
             {stressTest.criticalGaps.length > 0 && (
               <div className="pt-6 space-y-3">
                 <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  Gaps Críticos Identificados na Vaga:
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Lacunas Específicas da Vaga a Serem Supridas:
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {stressTest.criticalGaps.map((gap, i) => (
                     <div
                       key={i}
-                      className="p-3 rounded-xl bg-white/90 border border-rose-200/80 text-xs text-slate-700 flex items-start gap-2 shadow-xs"
+                      className="p-3 rounded-xl bg-white/90 border border-amber-200/80 text-xs text-slate-700 flex items-start gap-2 shadow-xs"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
                       <span>{gap}</span>
                     </div>
                   ))}
