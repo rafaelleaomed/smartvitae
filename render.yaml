@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: smartvitae
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_JEV
+        value: "true"
+      - key: TYPESAFE_MODEL
+        value: jev-latest
+      - key: TYPESAFE_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://smartvitae.onrender.com
