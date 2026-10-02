@@ -24,7 +24,10 @@ export default function RootLayout({
                 <img
                   src="/nexovitae-logo.jpg"
                   alt="NexoVitae Logo"
-                  className="w-full h-full object-cover scale-110"
+                  width={40}
+                  height={40}
+                  style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                  className="w-10 h-10 object-cover scale-110"
                 />
               </div>
               <div>
