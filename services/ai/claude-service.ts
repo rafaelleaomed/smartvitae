@@ -74,8 +74,8 @@ export async function callClaude(
       ? process.env.OPENROUTER_API_KEY.trim()
       : DEFAULT_OPENROUTER_KEY;
 
-  // Limite seguro de tokens para caber dentro da reserva de crédito do OpenRouter
-  const safeTokens = Math.min(options.maxTokens || 1000, 1200);
+  // Limite seguro de tokens para caber dentro da reserva de crédito do OpenRouter (Haiku comporta ~800 tokens no saldo atual)
+  const safeTokens = Math.min(options.maxTokens || 750, 800);
 
   // Seleção de modelos: Claude Haiku 4.5 é super rápido e consome pouquíssimos créditos
   const preferredModel = options.useSonnet
@@ -161,7 +161,7 @@ export async function callClaude(
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         temperature: options.temperature ?? 0.2,
-        max_tokens: safeTokens,
+        max_tokens: Math.min(options.maxTokens || 1200, 1500),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

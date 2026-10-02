@@ -11,14 +11,39 @@ import { EvidenceItem } from "@/lib/db/types";
 export const dynamic = "force-dynamic";
 
 /**
+ * Normaliza links de vagas para garantir acesso direto à página pública da vaga.
+ * Ex: Converte links de busca/feed do LinkedIn com currentJobId em URLs canônicas /jobs/view/{id}/
+ */
+function normalizeJobUrl(rawUrl: string): string {
+  if (!rawUrl) return "";
+  let url = rawUrl.trim();
+
+  // 1. URLs de busca, coleções ou tracker do LinkedIn com parâmetro currentJobId
+  // Ex: https://www.linkedin.com/jobs/search-results/?currentJobId=4469044082...
+  const currentJobIdMatch = url.match(/[?&]currentJobId=([0-9]{6,12})/i);
+  if (currentJobIdMatch && currentJobIdMatch[1]) {
+    return `https://www.linkedin.com/jobs/view/${currentJobIdMatch[1]}/`;
+  }
+
+  // 2. URLs com slug de vaga no LinkedIn: /jobs/view/titulo-4469044082/
+  const viewJobIdMatch = url.match(/\/jobs\/view\/(?:.*-)?([0-9]{6,12})/i);
+  if (viewJobIdMatch && viewJobIdMatch[1]) {
+    return `https://www.linkedin.com/jobs/view/${viewJobIdMatch[1]}/`;
+  }
+
+  return url;
+}
+
+/**
  * Função utilitária para extrair texto de uma página de vaga
  */
 async function scrapeJobPage(url: string): Promise<string> {
   try {
+    const targetUrl = normalizeJobUrl(url);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch(url, {
+    const res = await fetch(targetUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -148,8 +173,10 @@ export async function POST(req: NextRequest) {
     // 2. Extração da Vaga (Web Scraping ou Texto Colado)
     let extractedJobText = jobText ? jobText.trim() : "";
 
-    if (jobUrl && jobUrl.trim().length > 10 && extractedJobText.length < 20) {
-      const scraped = await scrapeJobPage(jobUrl.trim());
+    const canonicalJobUrl = jobUrl ? normalizeJobUrl(jobUrl.trim()) : "";
+
+    if (canonicalJobUrl && canonicalJobUrl.length > 10 && extractedJobText.length < 20) {
+      const scraped = await scrapeJobPage(canonicalJobUrl);
       if (scraped && scraped.length > 50) {
         extractedJobText = scraped;
       }

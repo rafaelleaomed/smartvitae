@@ -308,7 +308,15 @@ export default function HomePage() {
                 <input
                   type="url"
                   value={jobUrl}
-                  onChange={(e) => setJobUrl(e.target.value)}
+                  onChange={(e) => {
+                    let val = e.target.value;
+                    const match = val.match(/[?&]currentJobId=([0-9]{6,12})/i);
+                    if (match && match[1]) {
+                      val = `https://www.linkedin.com/jobs/view/${match[1]}/`;
+                    }
+                    setJobUrl(val);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="https://vagas.gupy.io/job/... ou linkedin.com/jobs/..."
                   className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 />
