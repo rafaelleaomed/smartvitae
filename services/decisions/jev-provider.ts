@@ -161,4 +161,67 @@ export class JevDecisionProvider implements DecisionProvider {
       };
     }
   }
+
+  async scoreEvidenceForJob(
+    state: import("./types").JobEvidenceState
+  ): Promise<import("./types").JobEvidenceDecision> {
+    if (!this.enabled || !this.apiKey) {
+      return this.localFallback.scoreEvidenceForJob(state);
+    }
+
+    try {
+      const payload = {
+        state,
+        model: this.model,
+        questions: {
+          is_relevant: {
+            type: "noul",
+            instructions:
+              "A evidência apoia diretamente ou de forma transferível o requisito, sem exigir inferências não sustentadas?",
+          },
+          match_strength: {
+            type: "score",
+            instructions: "Avalie a força da correspondência.",
+            criteria: ["Sem relação", "Relação indireta", "Parcial", "Forte", "Comprovação direta"],
+          },
+          needs_explanation: {
+            type: "noul",
+            instructions: "A relação é transferível e precisa ser explicada no resumo ou carta?",
+          },
+        },
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch("https://api.typesafe.ai/v1/systemone", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`TypeSafe API error: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const answers = data.answers || {};
+
+      return {
+        is_relevant: answers.is_relevant?.value ?? false,
+        match_strength: answers.match_strength?.value ?? 1,
+        needs_explanation: answers.needs_explanation?.value ?? false,
+        confidence: data.confidence ?? 0.88,
+      };
+    } catch (err: any) {
+      return this.localFallback.scoreEvidenceForJob(state);
+    }
+  }
 }
+

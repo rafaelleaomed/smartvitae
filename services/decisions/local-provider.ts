@@ -104,4 +104,37 @@ export class LocalRuleDecisionProvider implements DecisionProvider {
       reasoning: "Classificação calculada pelo motor determinístico de regras locais.",
     };
   }
+
+  async scoreEvidenceForJob(state: import("./types").JobEvidenceState): Promise<import("./types").JobEvidenceDecision> {
+    const reqText = state.requirement.toLowerCase();
+    const evText = `${state.evidence.title} ${state.evidence.type} ${state.evidence.description}`.toLowerCase();
+
+    // Palavras-chave relevantes
+    const reqWords = reqText
+      .split(/[\s,.;:()]+/)
+      .filter((w) => w.length > 3 && !["para", "com", "como", "mais", "sobre", "experiência", "conhecimento"].includes(w));
+
+    let matches = 0;
+    for (const word of reqWords) {
+      if (evText.includes(word)) {
+        matches++;
+      }
+    }
+
+    const ratio = reqWords.length > 0 ? matches / reqWords.length : 0;
+    const is_relevant = ratio >= 0.25 || matches >= 2;
+    let match_strength = 1;
+    if (ratio >= 0.7 || matches >= 4) match_strength = 5;
+    else if (ratio >= 0.5 || matches >= 3) match_strength = 4;
+    else if (is_relevant) match_strength = 3;
+    else if (matches === 1) match_strength = 2;
+
+    return {
+      is_relevant,
+      match_strength,
+      needs_explanation: is_relevant && match_strength < 4,
+      confidence: 0.88,
+    };
+  }
 }
+
