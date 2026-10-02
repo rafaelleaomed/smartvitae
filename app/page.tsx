@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   UploadCloud,
   Link as LinkIcon,
@@ -18,6 +19,7 @@ import {
   Check,
   ExternalLink,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
 import { TailoredResumeResult } from "@/services/generation/tailor-service";
 
@@ -138,14 +140,14 @@ Diferenciais:
       <div className="text-center space-y-3 pt-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
           <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-          Currículo Vivo • Fluxo Direto em 2 Passos
+          NexoVitae • Inteligência Curricular sem Alucinação
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
           Jogue seu currículo. Jogue a vaga.
         </h1>
         <p className="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-          O motor de decisão do <strong>Jev (TypeSafe AI)</strong> extrai suas evidências, 
-          cruza com os requisitos da vaga e adapta o currículo em segundos — <strong>sem inventar títulos ou cargos</strong>.
+          O <strong>NexoVitae</strong> utiliza o motor de decisão do <strong>Jev (TypeSafe AI / System One)</strong> para extrair suas evidências, 
+          cruzar com os requisitos da vaga e adaptar seu currículo com travas éticas do <strong>CFM & RQE</strong>.
         </p>
       </div>
 
@@ -216,6 +218,25 @@ Diferenciais:
                 placeholder="Ex: Dr. Silva, Residência no HC, cursos em IA..."
                 className="w-full p-3 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+            </div>
+
+            {/* Botão Solicitado: Não possuo currículo */}
+            <div className="pt-2 border-t border-slate-100">
+              <Link
+                href="/documentos"
+                className="w-full group flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50/40 hover:from-blue-50 hover:to-indigo-50/60 border border-slate-200/80 hover:border-blue-300 transition-all text-left shadow-sm"
+              >
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700 flex items-center gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+                    Não possuo currículo pronto?
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    Construa sua base do zero com certificados avulsos, link do LinkedIn ou Lattes.
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </Link>
             </div>
           </div>
 

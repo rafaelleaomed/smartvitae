@@ -122,12 +122,22 @@ export class JevDecisionProvider implements DecisionProvider {
       const data = await response.json();
       const answers = data.answers || {};
 
-      const evidence_type = (answers.evidence_type?.value as EvidenceType) || "outro";
-      const resume_section = (answers.resume_section?.value as ResumeSection) || "cursos";
-      const include_in_base_resume = answers.include_in_base_resume?.value ?? true;
-      let requires_human_review = answers.requires_human_review?.value ?? false;
-      const career_signal = answers.career_signal?.value ?? 3;
-      const confidence = data.confidence ?? answers.evidence_type?.confidence ?? 0.88;
+      const evidence_type = (answers.evidence_type?.choice || answers.evidence_type?.value as EvidenceType) || "outro";
+      const resume_section = (answers.resume_section?.choice || answers.resume_section?.value as ResumeSection) || "cursos";
+      
+      const include_in_base_resume = answers.include_in_base_resume?.noul !== undefined 
+        ? answers.include_in_base_resume.noul >= 0.5 
+        : (answers.include_in_base_resume?.value ?? true);
+        
+      let requires_human_review = answers.requires_human_review?.noul !== undefined 
+        ? answers.requires_human_review.noul >= 0.5 
+        : (answers.requires_human_review?.value ?? false);
+        
+      const career_signal = answers.career_signal?.score !== undefined 
+        ? Math.max(1, Math.min(5, Math.round(answers.career_signal.score))) 
+        : (answers.career_signal?.value ?? 3);
+        
+      const confidence = data.confidence ?? answers.evidence_type?.confidence ?? 0.92;
 
       // Trava CFM de conformidade: se for residência, mestrado, especialidade ou registro, sempre exigir revisão
       if (
@@ -213,11 +223,23 @@ export class JevDecisionProvider implements DecisionProvider {
       const data = await response.json();
       const answers = data.answers || {};
 
+      const is_relevant = answers.is_relevant?.noul !== undefined
+        ? answers.is_relevant.noul >= 0.35
+        : (answers.is_relevant?.value ?? false);
+
+      const match_strength = answers.match_strength?.score !== undefined
+        ? Math.max(1, Math.min(5, Math.round(answers.match_strength.score + 1)))
+        : (answers.match_strength?.value ?? 3);
+
+      const needs_explanation = answers.needs_explanation?.noul !== undefined
+        ? answers.needs_explanation.noul >= 0.5
+        : (answers.needs_explanation?.value ?? false);
+
       return {
-        is_relevant: answers.is_relevant?.value ?? false,
-        match_strength: answers.match_strength?.value ?? 1,
-        needs_explanation: answers.needs_explanation?.value ?? false,
-        confidence: data.confidence ?? 0.88,
+        is_relevant,
+        match_strength,
+        needs_explanation,
+        confidence: data.confidence ?? answers.match_strength?.confidence ?? 0.88,
       };
     } catch (err: any) {
       return this.localFallback.scoreEvidenceForJob(state);

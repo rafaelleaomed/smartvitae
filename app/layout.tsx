@@ -4,8 +4,8 @@ import Link from "next/link";
 import { ShieldCheck, FileText, Database, Sparkles, UserCheck } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Currículo Vivo | Médicos Híbridos",
-  description: "Base de Evidências Profissionais e Adequação Curricular sem Alucinação para Médicos e Inovadores em Saúde.",
+  title: "NexoVitae | Inteligência Curricular com JEV para Médicos",
+  description: "NexoVitae — Base de Evidências Profissionais e Adequação Curricular sem Alucinação para Médicos e Inovadores em Saúde.",
 };
 
 export default function RootLayout({
@@ -17,40 +17,44 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased flex flex-col font-sans">
         {/* Header Superior Profissional */}
-        <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/90 backdrop-blur-md">
+        <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
-                <ShieldCheck className="w-6 h-6" />
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-white flex items-center justify-center shrink-0">
+                <img
+                  src="/nexovitae-logo.jpg"
+                  alt="NexoVitae Logo"
+                  className="w-full h-full object-cover scale-110"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-lg text-slate-900 tracking-tight">
-                    Currículo Vivo
+                  <span className="font-extrabold text-lg text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                    NexoVitae
                   </span>
-                  <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
-                    Médicos Híbridos
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
+                    JEV Powered
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 font-medium">
-                  Base de Evidências com Decisão Jev & Trava CFM
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Adequação Curricular sem Alucinação • CFM & RQE
                 </p>
               </div>
-            </div>
+            </Link>
 
             <nav className="flex items-center gap-1 sm:gap-2">
               <Link
                 href="/"
                 className="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors"
               >
-                Dashboard
+                Início (2 Passos)
               </Link>
               <Link
                 href="/documentos"
                 className="px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100 transition-colors flex items-center gap-1.5"
               >
                 <FileText className="w-4 h-4" />
-                Documentos & LinkedIn
+                Certificados & LinkedIn
               </Link>
               <Link
                 href="/evidencias"
