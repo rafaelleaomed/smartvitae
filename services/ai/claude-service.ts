@@ -50,15 +50,6 @@ function extractJsonFromText(text: string): any {
   }
 }
 
-/**
- * Chamada unificada ao modelo Claude via OpenRouter
- * Prioriza Claude Haiku 4.5 e Sonnet 4.5 com limites seguros de tokens para não estourar créditos
- */
-const DEFAULT_OPENROUTER_KEY = Buffer.from(
-  "c2stb3ItdjEtZWVkODMyODZkOWFhODM5OTYxNDU1NmZmOWM0YzFlM2M0ZmRiNjdmOTZjMDRhOWY2YmM5NTEzMmQ0ZGMxYzg0Nw==",
-  "base64"
-).toString("utf-8");
-
 export async function callClaude(
   systemPrompt: string,
   userPrompt: string,
@@ -69,10 +60,10 @@ export async function callClaude(
     useSonnet?: boolean;
   } = {}
 ): Promise<string> {
-  const openRouterKey =
-    process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim().length > 10
-      ? process.env.OPENROUTER_API_KEY.trim()
-      : DEFAULT_OPENROUTER_KEY;
+  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!openRouterKey) {
+    throw new Error("Chave de API OPENROUTER_API_KEY não configurada nas variáveis de ambiente.");
+  }
 
   // Ajuste inteligente de tokens baseado na cota do OpenRouter para evitar 402 Payment Required:
   // - Modelos Claude: limite de 450 tokens na chave atual

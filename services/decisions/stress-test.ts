@@ -37,15 +37,7 @@ export async function runJevStressTest(
   jobUrl?: string
 ): Promise<StressTestResult> {
   const startTime = Date.now();
-  const apiKey =
-    process.env.TYPESAFE_API_KEY ||
-    "apikey_224462dee28596dd4c26b8b3d1a1c635f12f_c7674dd6df5eba95f4e05e544266e6f3e698a14b36f239d581126e22bdb52c79";
-  const openRouterKey =
-    process.env.OPENROUTER_API_KEY ||
-    Buffer.from(
-      "c2stb3ItdjEtZWVkODMyODZkOWFhODM5OTYxNDU1NmZmOWM0YzFlM2M0ZmRiNjdmOTZjMDRhOWY2YmM5NTEzMmQ0ZGMxYzg0Nw==",
-      "base64"
-    ).toString("utf-8");
+  const apiKey = process.env.TYPESAFE_API_KEY?.trim();
 
   let jevAnswers: any = null;
   let claudeAudit: CandidateFitAudit | null = null;

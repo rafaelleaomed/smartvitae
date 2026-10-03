@@ -6,6 +6,7 @@ import { sanitizeTextForAI } from "@/lib/privacy/sanitizer";
 import { getDecisionProvider } from "@/services/decisions";
 import { localStore, DEMO_USER_ID } from "@/lib/db/store";
 import { DocumentRecord, EvidenceItem } from "@/lib/db/types";
+import { validateUploadedFile } from "@/lib/security/file-validator";
 
 export const dynamic = "force-dynamic";
 
@@ -18,23 +19,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 400 });
     }
 
-    const allowedMimeTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "image/jpeg",
-      "image/png",
-    ];
-
-    if (!allowedMimeTypes.includes(file.type) && !file.name.endsWith(".pdf")) {
-      return NextResponse.json(
-        { error: "Formato não suportado. Envie PDF, DOCX, JPG ou PNG." },
-        { status: 400 }
-      );
-    }
-
-    // Leitura dos bytes do arquivo
+    // Leitura e validação rigorosa de bytes, extensões e magic bytes
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const bytes = new Uint8Array(arrayBuffer);
+
+    const validation = validateUploadedFile(file, bytes);
+    if (!validation.isValid) {
+      return NextResponse.json({ error: validation.reason }, { status: 400 });
+    }
+
+    const safeFileName = validation.sanitizedFileName;
 
     // 1. Cálculo do Hash SHA-256 (Detecção de duplicidade por integridade)
     const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
@@ -67,8 +62,8 @@ export async function POST(req: NextRequest) {
       id: docId,
       user_id: DEMO_USER_ID,
       source_type: "upload",
-      storage_path: `uploads/${DEMO_USER_ID}/${file.name}`,
-      original_name: file.name,
+      storage_path: `uploads/${DEMO_USER_ID}/${safeFileName}`,
+      original_name: safeFileName,
       mime_type: file.type || "application/pdf",
       sha256,
       status: "extracted",
@@ -85,9 +80,9 @@ export async function POST(req: NextRequest) {
 
     // 5. Detecta se o arquivo é um Currículo Completo ou um Certificado Individual
     const isCvOrResume =
-      file.name.toLowerCase().includes("curriculo") ||
-      file.name.toLowerCase().includes("currículo") ||
-      file.name.toLowerCase().includes("cv") ||
+      safeFileName.toLowerCase().includes("curriculo") ||
+      safeFileName.toLowerCase().includes("currículo") ||
+      safeFileName.toLowerCase().includes("cv") ||
       file.name.toLowerCase().includes("resume") ||
       (sanitization.sanitizedText.length > 300 &&
         /(experiência|experience|educação|education|formação|formacao|histórico|skills|habilidades)/i.test(

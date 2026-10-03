@@ -7,6 +7,8 @@ import { runJevStressTest, StressTestResult } from "@/services/decisions/stress-
 import { localStore, DEMO_USER_ID } from "@/lib/db/store";
 import { TailorService } from "@/services/generation/tailor-service";
 import { EvidenceItem } from "@/lib/db/types";
+import { validateSafePublicUrl } from "@/lib/security/url-validator";
+import { validateUploadedFile } from "@/lib/security/file-validator";
 
 export const dynamic = "force-dynamic";
 
@@ -36,14 +38,21 @@ function normalizeJobUrl(rawUrl: string): string {
 
 /**
  * Função utilitária para extrair texto de uma página de vaga
+ * Protegida contra SSRF (bloqueia IPs internos, localhost e metadados)
  */
 async function scrapeJobPage(url: string): Promise<string> {
   try {
     const targetUrl = normalizeJobUrl(url);
+    const safetyCheck = validateSafePublicUrl(targetUrl);
+    if (!safetyCheck.isValid || !safetyCheck.sanitizedUrl) {
+      console.warn("Bloqueio de segurança (SSRF) para URL da vaga:", safetyCheck.reason);
+      return "";
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch(targetUrl, {
+    const res = await fetch(safetyCheck.sanitizedUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -150,9 +159,16 @@ export async function POST(req: NextRequest) {
 
     // 1. Extração do Currículo
     if (uploadedFile) {
+      const arrayBuffer = await uploadedFile.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const validation = validateUploadedFile(uploadedFile, bytes);
+
+      if (!validation.isValid) {
+        return NextResponse.json({ error: validation.reason }, { status: 400 });
+      }
+
       try {
-        const arrayBuffer = await uploadedFile.arrayBuffer();
-        const pdfData = await extractPdfText(new Uint8Array(arrayBuffer));
+        const pdfData = await extractPdfText(bytes);
         resumeText = pdfData.text;
       } catch (err: any) {
         console.warn("Falha na leitura direta do PDF:", err.message);
