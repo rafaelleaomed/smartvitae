@@ -33,3 +33,7 @@ next-env.d.ts
 # scratch and logs
 scratch/
 *.log
+
+# impeccable engine binary
+**/skills/impeccable/scripts/bin/
+
