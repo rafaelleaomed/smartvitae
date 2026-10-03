@@ -338,7 +338,7 @@ export default function EvidenciasPage() {
                       <button
                         onClick={() => handleReject(item.id!)}
                         disabled={actionLoadingId === item.id}
-                        className="inline-flex items-center gap-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors border border-slate-200"
+                        className="inline-flex items-center gap-1 bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-900 font-semibold px-2.5 py-1.5 rounded-lg text-xs transition-colors border border-rose-200"
                       >
                         <XCircle className="w-3.5 h-3.5" />
                         Rejeitar
@@ -347,7 +347,7 @@ export default function EvidenciasPage() {
                     <button
                       onClick={() => handleDelete(item.id!)}
                       disabled={actionLoadingId === item.id}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                      className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
                       title="Excluir evidência"
                     >
                       <Trash2 className="w-4 h-4" />

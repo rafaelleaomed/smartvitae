@@ -278,7 +278,7 @@ export default function AdaptarPage() {
       padding: 0;
     }
     body {
-      font-family: Arial, "Helvetica Neue", Helvetica, "Nimbus Sans L", "Liberation Sans", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       font-size: 10.5pt;
       line-height: 1.45;
       color: #111827;
@@ -293,7 +293,7 @@ export default function AdaptarPage() {
       margin: 0 auto;
       white-space: pre-wrap;
       word-break: break-word;
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       font-size: 10.5pt;
       line-height: 1.45;
       color: #111827;
@@ -662,10 +662,10 @@ export default function AdaptarPage() {
                 className="w-full max-w-[850px] bg-white text-slate-900 rounded-2xl shadow-2xl p-8 sm:p-12 md:p-16 border border-slate-200 select-text"
                 style={{
                   minHeight: "1050px",
-                  fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
                 }}
               >
-                <div className="text-[10pt] sm:text-[10.5pt] leading-[1.48] text-slate-900 whitespace-pre-wrap font-normal selection:bg-blue-100 selection:text-blue-900">
+                <div className="text-[10pt] sm:text-[10.5pt] leading-[1.48] text-slate-900 whitespace-pre-wrap font-normal">
                   {restructuredCv}
                 </div>
               </div>
