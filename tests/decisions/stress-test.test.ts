@@ -30,6 +30,38 @@ Requisitos:
 - Conhecimentos em Inteligência Artificial e tecnologias de saúde.
 `;
 
+  const dentistBucoCv = `
+Dra. Mariana Silva
+Cirurgiã-Dentista | CRO-SP 123456
+Especialista em Cirurgia e Traumatologia Bucomaxilofacial
+Experiência:
+- Residência em Cirurgia e Traumatologia Bucomaxilofacial pelo Hospital das Clínicas
+- Atendimento cirúrgico hospitalar e bucomaxilo
+- Cursos de pós-graduação e aperfeiçoamento em Odontologia
+Formação:
+- Graduação em Odontologia
+`;
+
+  const endocrinoJob = `
+Vaga: Médico Endocrinologista
+Hospital Santa Catarina
+Requisitos:
+- Graduação em Medicina e CRM ativo no estado de SP.
+- Residência médica formal em Endocrinologia e Metabologia ou título de especialista (RQE).
+- Atendimento ambulatorial e manejo de patologias endócrinas.
+`;
+
+  it("deve emitir veredito KILL e bloquear geração de currículo para Dentista Bucomaxilo x Médico Endocrinologista", async () => {
+    const result = await runJevStressTest(dentistBucoCv, endocrinoJob);
+
+    expect(result.verdict).toBe("kill");
+    expect(result.allowResumeGeneration).toBe(false);
+    expect(result.score).toBeLessThanOrEqual(15);
+    expect(result.matchedSkills).toEqual([]); // Zero competências médicas alucinadas
+    expect(result.criticalGaps.some((g) => g.includes("Medicina") || g.includes("CRM"))).toBe(true);
+    expect(result.honestDiagnosis).toContain("Lei do Ato Médico");
+  });
+
   it("deve emitir veredito KILL e bloquear geração de currículo para Médico x Vendedor", async () => {
     const result = await runJevStressTest(doctorCv, salesJob);
 

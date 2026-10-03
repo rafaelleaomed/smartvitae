@@ -1,4 +1,5 @@
 import { auditCandidateFitWithClaude, CandidateFitAudit } from "@/services/ai/claude-service";
+import { validateProfessionalCompatibility } from "@/lib/taxonomy/profession-rules";
 
 export interface StressTestDimension {
   key: string;
@@ -30,70 +31,40 @@ export interface StressTestResult {
 /**
  * Motor Analítico Factual de Alta Disponibilidade (SmartVitae Native Engine)
  * Atuará como fallback resiliente e determinístico caso provedores externos de IA
- * estejam temporariamente fora do ar, garantindo zero indisponibilidade ao usuário.
+ * estejam temporariamente fora do ar, garantindo conformidade com conselhos de classe.
  */
 function runHeuristicStressAudit(candidateProfile: string, targetJob: string): CandidateFitAudit {
-  const cLow = candidateProfile.toLowerCase();
-  const jLow = targetJob.toLowerCase();
-
-  // 1. Detecção de Áreas Profissionais
-  const isDoctor =
-    cLow.includes("médic") ||
-    cLow.includes("crm") ||
-    cLow.includes("medicina") ||
-    cLow.includes("residente") ||
-    cLow.includes("clínica");
-
-  const isHealthJob =
-    jLow.includes("saúde") ||
-    jLow.includes("médic") ||
-    jLow.includes("hospital") ||
-    jLow.includes("clínic") ||
-    jLow.includes("health") ||
-    jLow.includes("paciente");
-
-  const isSalesJob =
-    jLow.includes("vendas") ||
-    jLow.includes("veículo") ||
-    jLow.includes("automóve") ||
-    jLow.includes("comercial") ||
-    jLow.includes("concessionária") ||
-    jLow.includes("corretor");
-
-  // Incompatibilidade Crítica Estrutural (ex: Médico para Vendedor automotivo)
-  const isCriticalMismatch =
-    (isDoctor && isSalesJob && !jLow.includes("médic")) ||
-    (isDoctor &&
-      !isHealthJob &&
-      (jLow.includes("engenharia civil") || jLow.includes("advocacia tributária")));
-
-  if (isCriticalMismatch) {
+  // 1. Validação Regulatória Estrita entre Conselhos e Formação
+  const regCheck = validateProfessionalCompatibility(candidateProfile, targetJob);
+  if (regCheck.isFatalMismatch) {
     return {
       scores: {
-        profession_fit: 0.5,
-        mandatory_skills: 0.7,
-        daily_activities: 0.5,
-        fabrication_risk: 0.4,
-        industry_fit: 0.6,
-        experience_depth: 0.8,
+        profession_fit: 0.0,
+        mandatory_skills: 0.0,
+        daily_activities: 0.0,
+        fabrication_risk: 0.0,
+        industry_fit: 0.8,
+        experience_depth: 1.0,
       },
       verdict: "kill",
       matchedSkills: [],
-      missingGaps: [
-        "Inexistência de histórico profissional comprovado na área comercial da vaga anunciada.",
-        "Ausência de domínio prático das rotinas de negociação e metas agressivas do cargo.",
-        "Formação acadêmica e registros profissionais totalmente discrepantes dos requisitos obrigatórios.",
-      ],
+      missingGaps: regCheck.missingMandatoryGaps,
       detailedDiagnosis:
-        "O motor analítico identificou incompatibilidade crítica estrutural. Adaptar um perfil médico para essa oportunidade exigiria inventar qualificações fictícias, o que violaria o código de ética profissional e resultaria em descarte sumário na triagem.",
+        regCheck.fatalReason ||
+        "Incompatibilidade regulatória intransponível identificada entre profissões regulamentadas.",
       roadmap: [
-        "Direcionar candidaturas para funções onde sua formação e vivência clínica sejam valorizadas como diferencial competitivo.",
-        "Caso tenha interesse real em transição comercial, iniciar com posições de Medical Science Liaison (MSL) ou consultoria em healthtechs.",
+        `Direcionar candidaturas para funções privativas de ${regCheck.candidateProfessionLabel}.`,
+        "Utilizar suas evidências e especialidades nas áreas onde seu conselho profissional é exigido.",
       ],
     };
   }
 
-  // Compatibilidade Positiva ou Parcial
+  const cLow = candidateProfile.toLowerCase();
+  const jLow = targetJob.toLowerCase();
+
+  const isDoctor = cLow.includes("médic") || cLow.includes("crm") || cLow.includes("medicina");
+  const isHealthJob = jLow.includes("saúde") || jLow.includes("médic") || jLow.includes("hospital");
+
   const hasTech =
     cLow.includes("tecnologia") ||
     cLow.includes("ia") ||
@@ -133,7 +104,7 @@ function runHeuristicStressAudit(candidateProfile: string, targetJob: string): C
     missingGaps.push("Certificações complementares nas metodologias específicas do anunciante.");
   }
 
-  const isStrongMatch = (isDoctor && isHealthJob) || matchedSkills.length >= 2;
+  const isStrongMatch = isDoctor && isHealthJob;
 
   return {
     scores: {
@@ -150,7 +121,7 @@ function runHeuristicStressAudit(candidateProfile: string, targetJob: string): C
     missingGaps,
     detailedDiagnosis: isStrongMatch
       ? "Excelente aderência factual. Seu histórico clínico e qualificações comprovadas atendem aos pilares centrais da oportunidade."
-      : "Alinhamento profissional promissor com lacunas técnicas pontuais que devem ser apresentadas com transparência.",
+      : "Alinhamento profissional com lacunas técnicas pontuais que devem ser apresentadas com transparência.",
     roadmap: [
       "Realçar no resumo profissional as evidências que dialogam diretamente com a vaga.",
       "Anexar certificados complementares na base para respaldar cada competência declarada.",
@@ -160,7 +131,7 @@ function runHeuristicStressAudit(candidateProfile: string, targetJob: string): C
 
 /**
  * Avalia currículo x vaga em 6 dimensões com motores reais de IA (JEV System One + Claude)
- * Elimina completamente alucinações e conta com motor analítico nativo de alta disponibilidade.
+ * Elimina completamente alucinações e aplica trava regulatória de conselhos de classe (CFM/CFO/COFEN).
  */
 export async function runJevStressTest(
   candidateProfile: string,
@@ -168,6 +139,90 @@ export async function runJevStressTest(
   jobUrl?: string
 ): Promise<StressTestResult> {
   const startTime = Date.now();
+
+  // 0. TRAVA REGULATÓRIA MANDATÓRIA (LEI 12.842 / CFM / CFO / COFEN)
+  // Bloqueia imediatamente qualquer tentativa de incompatibilidade legal
+  // (ex: Dentista em vaga de Médico Endocrinologista, Advogado em vaga de Engenheiro)
+  const regCheck = validateProfessionalCompatibility(candidateProfile, targetJob);
+  if (regCheck.isFatalMismatch) {
+    return {
+      score: 8, // Máximo 8% de aderência para incompatibilidade legal total
+      verdict: "kill",
+      verdictLabel: "🚨 DESALINHADO / INCOMPATIBILIDADE REGULATÓRIA",
+      verdictDescription:
+        regCheck.fatalReason ||
+        "Incompatibilidade estrutural intransponível de conselho de classe e formação profissional.",
+      dimensions: [
+        {
+          key: "profession_fit",
+          label: "Alinhamento de Profissão / Formação",
+          rawScore: 0.0,
+          score: 0,
+          weight: 2.5,
+          confidence: 1.0,
+          assessment: `Formação em ${regCheck.candidateProfessionLabel} incompatível com exigência privativa de ${regCheck.jobProfessionLabel}.`,
+        },
+        {
+          key: "mandatory_skills",
+          label: "Requisitos Obrigatórios Comprovados",
+          rawScore: 0.0,
+          score: 0,
+          weight: 2.5,
+          confidence: 1.0,
+          assessment: "Não atende aos requisitos legais e registros obrigatórios do cargo.",
+        },
+        {
+          key: "daily_activities",
+          label: "Histórico nas Rotinas Práticas do Cargo",
+          rawScore: 0.0,
+          score: 0,
+          weight: 2.0,
+          confidence: 1.0,
+          assessment: "Rotinas privativas de outra área regulamentada.",
+        },
+        {
+          key: "fabrication_risk",
+          label: "Segurança Ética (Sem Invenção de Fatos)",
+          rawScore: 0.0,
+          score: 0,
+          weight: 1.5,
+          confidence: 1.0,
+          assessment: "Risco extremo de exercício ilegal de profissão regulamentada.",
+        },
+        {
+          key: "industry_fit",
+          label: "Vivência no Setor / Mercado da Vaga",
+          rawScore: 0.8,
+          score: 20,
+          weight: 1.0,
+          confidence: 0.9,
+          assessment: "Atuação no segmento da saúde, porém com atribuições privativas distintas.",
+        },
+        {
+          key: "experience_depth",
+          label: "Profundidade de Senioridade",
+          rawScore: 1.0,
+          score: 25,
+          weight: 1.5,
+          confidence: 0.9,
+          assessment: "Senioridade sólida na profissão de origem, mas inaplicável à vaga pretendida.",
+        },
+      ],
+      criticalGaps: regCheck.missingMandatoryGaps,
+      matchedSkills: [], // ZERO competências médicas inventadas!
+      honestDiagnosis:
+        regCheck.fatalReason ||
+        "Incompatibilidade regulatória intransponível identificada entre profissões regulamentadas.",
+      roadmapToTarget: [
+        `Direcionar candidaturas para funções privativas de ${regCheck.candidateProfessionLabel}.`,
+        "Utilizar seu histórico e títulos nas áreas onde sua graduação e conselho profissional são valorizados.",
+      ],
+      allowResumeGeneration: false,
+      model: "Trava Regulatória Estrita (CFM / CFO / Lei do Ato Médico)",
+      latencyMs: Date.now() - startTime,
+    };
+  }
+
   const apiKey = process.env.TYPESAFE_API_KEY?.trim();
 
   let jevAnswers: any = null;

@@ -513,6 +513,12 @@ REGRAS:
    - "kill": Perfil totalmente discrepante (ex: Médico para Vendedor de Automóveis, Engenheiro Civil para Cirurgião).
    - "fix": Perfil na mesma área ou adjacente, mas com lacunas específicas que precisam ser justificadas ou supridas.
    - "ship": Forte alinhamento nas qualificações centrais da vaga.
+8. REGRA REGULATÓRIA MANDATÓRIA (LEI DO ATO MÉDICO / CONSELHOS DE CLASSE):
+   - Odontologia / Cirurgião-Dentista / Bucomaxilo (CRO) NUNCA é Medicina (CRM).
+   - Enfermagem (COREN), Farmácia (CRF), Fisioterapia (CREFITO), Biomedicina (CRBM) e Psicologia (CRP) NÃO são Medicina (CRM).
+   - Se a vaga exigir formação médica (Médico, Medicina, CRM, ou especialidade médica privativa como Endocrinologia, Cardiologia, Cirurgia, etc.) e o candidato for de outra profissão da saúde (como Dentista, Bucomaxilo, Enfermeiro, Farmacêutico), o veredito DEVE SER OBRIGATORIAMENTE "kill", com nota 0.0 em profession_fit e mandatory_skills.
+   - NUNCA declare requisitos médicos privativos como atendidos por profissionais não médicos!
+   - Da mesma forma, se a vaga exigir Odontologia/CRO e o candidato for Médico, o veredito é "kill".
 
 Retorne EXCLUSIVAMENTE um JSON:
 {
