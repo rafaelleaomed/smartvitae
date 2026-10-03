@@ -74,18 +74,31 @@ export async function callClaude(
       ? process.env.OPENROUTER_API_KEY.trim()
       : DEFAULT_OPENROUTER_KEY;
 
-  // Limite seguro de tokens para caber dentro da reserva de crédito do OpenRouter (Haiku comporta ~800 tokens no saldo atual)
-  const safeTokens = Math.min(options.maxTokens || 750, 800);
+  // Ajuste inteligente de tokens baseado na cota do OpenRouter para evitar 402 Payment Required:
+  // - Modelos Claude: limite de 450 tokens na chave atual
+  // - Gemini 2.5 Flash: até 800 tokens
+  // - Llama 3.3 70B: até 1500 tokens
+  const requestedTokens = options.maxTokens || 420;
+  const isLargeGeneration = requestedTokens > 450;
 
-  // Seleção de modelos: Claude Haiku 4.5 é super rápido e consome pouquíssimos créditos
-  const preferredModel = options.useSonnet
+  // Seleção primária de modelo:
+  // Se for currículo completo (>450 tokens), usa Gemini 2.5 Flash diretamente para não estourar a cota de tokens do Claude
+  const preferredModel = isLargeGeneration
+    ? "google/gemini-2.5-flash"
+    : options.useSonnet
     ? "anthropic/claude-sonnet-4.5"
     : "anthropic/claude-haiku-4.5";
+
+  const primarySafeTokens = preferredModel.startsWith("anthropic/")
+    ? Math.min(requestedTokens, 450)
+    : preferredModel.startsWith("google/")
+    ? Math.min(requestedTokens, 800)
+    : Math.min(requestedTokens, 1500);
 
   const requestBody: any = {
     model: preferredModel,
     temperature: options.temperature ?? 0.1,
-    max_tokens: safeTokens,
+    max_tokens: primarySafeTokens,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -134,7 +147,7 @@ export async function callClaude(
         body: JSON.stringify({
           ...requestBody,
           model: "anthropic/claude-haiku-4.5",
-          max_tokens: safeTokens,
+          max_tokens: Math.min(requestedTokens, 450),
         }),
       });
 
@@ -161,7 +174,7 @@ export async function callClaude(
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         temperature: options.temperature ?? 0.2,
-        max_tokens: Math.min(options.maxTokens || 1200, 1500),
+        max_tokens: Math.min(requestedTokens, 800),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -192,11 +205,12 @@ export async function callClaude(
       body: JSON.stringify({
         model: "meta-llama/llama-3.3-70b-instruct",
         temperature: options.temperature ?? 0.1,
-        max_tokens: safeTokens,
+        max_tokens: Math.min(requestedTokens, 1500),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        ...(options.json ? { response_format: { type: "json_object" } } : {}),
       }),
     });
 
@@ -319,46 +333,114 @@ export async function generateTailoredResumeWithClaude(params: {
   candidateName: string;
   crmInfo?: string | null;
   declaredGaps?: string[];
+  targetLang?: "auto" | "pt" | "en";
 }): Promise<string> {
-  const { jobTitle, jobText, evidences, candidateName, crmInfo, declaredGaps } = params;
+  const { jobTitle, jobText, evidences, candidateName, crmInfo, declaredGaps, targetLang } = params;
 
-  const systemPrompt = `Você é um consultor sênior executivo de carreiras na área de saúde e tecnologia no SmartVitae.
-Sua missão: Escrever um currículo impecável, moderno, em formato ATS de 1 coluna, altamente atrativo para a vaga pretendida.
+  // 1. Detecção Inteligente de Idioma Alvo
+  const combinedJob = `${jobTitle} ${jobText}`.toLowerCase();
+  const englishSignals = [
+    "experience",
+    "requirements",
+    "responsibilities",
+    "qualifications",
+    "bachelor",
+    "degree",
+    "skills",
+    "remote",
+    "hybrid",
+    "evaluator",
+    "reviewer",
+    "physician",
+    "doctor",
+    "full-time",
+    "part-time",
+    "contract",
+    "clinical",
+    "medical domain",
+    "prompt",
+    "rlhf",
+    "deliverables",
+  ];
+  const englishHits = englishSignals.filter((w) => combinedJob.includes(w)).length;
+  const isEnglish =
+    targetLang === "en" || (targetLang !== "pt" && englishHits >= 2);
 
-REGRAS DE CONFORMIDADE ÉTICA E ZERO ALUCINAÇÃO:
-1. Use ESTRITAMENTE as evidências e fatos fornecidos na base documental.
-2. NUNCA invente empregadores, hospitais, cursos, anos ou certificações.
-3. Se houver lacunas informadas (requisitos que o candidato declarou não possuir), NÃO as mencione como existentes. Destaque os pontos fortes reais.
-4. Redija um resumo executivo poderoso conectando a experiência real às demandas da vaga.
-5. Formate em texto estruturado limpo.
+  // 2. Prompts Especializados em conformidade com o Checklist Médicos Híbridos
+  const systemPrompt = isEnglish
+    ? `You are an expert executive resume writer specializing in healthcare AI and international US Resume standards (Harvard Mignone Center & Formação Médicos Híbridos standards).
 
-ESTRUTURA:
-================================================================================
-${candidateName.toUpperCase()}${crmInfo ? ` • ${crmInfo}` : ""}
-ALVO PROFISSIONAL: ${jobTitle.toUpperCase()}
-================================================================================
+YOUR CORE MISSION:
+Write an impeccable, high-converting 1-column ATS-compliant US Resume strictly adhering to the "Formação Médicos Híbridos US Resume Checklist".
 
-RESUMO PROFISSIONAL E ALINHAMENTO ESTRATÉGICO
-[Resumo executivo conectando a bagagem real aos desafios da vaga]
+CHECKLIST AND ARCHITECTURAL STANDARDS (US RESUME):
+1. HEADER:
+   - Candidate Full Name in bold / clean uppercase.
+   - Contact line: City, Country | Phone with country code (+55 ...) | Professional email | LinkedIn URL | Portfolio URL (if available).
+   - OMIT photos, age, date of birth, marital status, and Brazilian identity numbers (CPF/RG).
+2. SUMMARY:
+   - Exactly 2 to 3 concise sentences.
+   - Clinical identity with verified years of experience in relevant clinical setting.
+   - Separates clinical experience years from AI evaluation / technology experience (e.g., "Physician with 5+ years of verified clinical experience, complemented by portfolio work in clinical AI evaluation").
+   - Connects demonstrable skills to the target role and 2 key responsibilities from the job posting.
+3. RELEVANT AI PROJECTS (Place here before or alongside experience if candidate has AI/tech projects):
+   - Project name | Independent project / Course project / Volunteer role | Mon YYYY - Mon YYYY / Year.
+   - Bullets start with powerful action verbs (Developed, Evaluated, Designed, Benchmarked).
+   - State task, method, deliverable and scope.
+   - Explicitly note honest limitations (e.g., "Self-directed project using synthetic clinical cases; does not establish suitability for patient care").
+4. WORK EXPERIENCE:
+   - Organization | City, Country.
+   - Accurate job title in English | Mon YYYY - Mon YYYY / Present (from newest to oldest).
+   - 2 to 4 bullet points per role, each beginning with a strong action verb (Conducted, Evaluated, Coordinated, Assessed, Treated, Managed).
+   - Connect deliverable and scope to clinical or operational method. No "I" or "we". Past tense for completed roles, present for current.
+5. EDUCATION:
+   - Medical Residency (if completed formal residency): Institution | Country | Medical Residency in [Specialty] | YYYY - YYYY.
+   - Medical Degree: University | Country | Medical Degree (Brazil) | YYYY - YYYY. (Do not claim unverified foreign equivalence).
+6. TRAINING AND SKILLS:
+   - Training: Relevant courses, issuers and dates (Mark "In progress" if ongoing).
+   - Skills: Only verifiable methods and tools (e.g. Clinical reasoning, AI evaluation, Rubric design, Annotation guidelines, Medical fact verification).
+   - Languages: Portuguese (Native); English (Professional working proficiency / verified level).
+7. COMPLIANCE & ZERO FABRICATION:
+   - NEVER invent hospital names, metrics, error reduction percentages, or unverified degrees.
+   - Strictly honor declared gaps (do NOT state the candidate possesses skills they marked as lacking).
+   - Remove all template notes, brackets, or placeholder text in final output.`
+    : `Você é um consultor sênior executivo de carreiras médicas e transição em saúde e tecnologia (padrão Formação Médicos Híbridos / CFM).
 
-EXPERIÊNCIA PROFISSIONAL RELEVANTE
-[Cargos, instituições, períodos e realizações factuais]
+SUA MISSÃO:
+Escrever um currículo moderno, impecável, em formato ATS de 1 coluna, altamente atrativo para a vaga pretendida, seguindo o Checklist da Formação Médicos Híbridos.
 
-FORMAÇÃO ACADÊMICA E RESIDÊNCIA MÉDICA
-[Instituições, graduações, residências CNRM]
-
-COMPETÊNCIAS TÉCNICAS, IDIOMAS & HABILIDADES
-[Idiomas, ferramentas e metodologias comprovadas]
-
-CERTIFICAÇÕES E LICENÇAS COMPROVADAS
-[Registros, certificações e capacitações formais]
-
-================================================================================
-TERMO DE CONFORMIDADE ÉTICA & RESOLUÇÕES CFM:
-Nenhum título de especialista (RQE) ou experiência foi fabricado para esta candidatura. Currículo estruturado com base estrita em evidências documentais auditadas.`;
+PADRÕES DO CHECKLIST DE CURRÍCULO (PADRÃO MÉDICOS HÍBRIDOS):
+1. CABEÇALHO:
+   - Nome completo em destaque.
+   - Linha de contato: Cidade, Estado / Brasil | Telefone com DDD | E-mail profissional | LinkedIn: URL | CRM: [Número-UF].
+   - Sem foto, sem idade, sem estado civil, sem CPF/RG.
+2. RESUMO PROFISSIONAL:
+   - 2 a 3 frases concisas.
+   - Identidade clínica atual com tempo comprovado de atuação clínica.
+   - Separar tempo de clínica de tempo de atuação com IA/tecnologia.
+   - Conectar as competências demonstradas às principais responsabilidades da vaga.
+3. PROJETOS RELEVANTES EM IA E SAÚDE (Se o candidato possuir iniciativas ou projetos de portfólio):
+   - Nome do Projeto | Projeto independente / acadêmico / voluntário | Período / Ano.
+   - Bullets iniciados com verbos de ação (Desenvolveu, Avaliou, Elaborou, Estruturou).
+   - Tarefa, escopo, método e entrega concreta. Destacar limites factuais (ex: casos sintéticos, sem validação em pacientes reais).
+4. EXPERIÊNCIA PROFISSIONAL:
+   - Instituição / Hospital | Cidade, UF.
+   - Cargo real e período (do mais recente para o mais antigo).
+   - 2 a 4 bullets por cargo iniciando com verbos de ação (Coordenou, Realizou, Avaliou, Prescreveu, Manejou).
+   - Escopo, método clínico e entrega concreta. Sem "eu" ou "nós".
+5. FORMAÇÃO ACADÊMICA E RESIDÊNCIA:
+   - Residência Médica formal CNRM (se houver): Instituição | UF | Residência Médica em [Especialidade] | AAAA - AAAA.
+   - Graduação: Universidade | UF | Graduação em Medicina | AAAA - AAAA.
+6. CURSOS E COMPETÊNCIAS:
+   - Treinamentos: Cursos relevantes, emissor e ano (indicar "Em andamento" se não concluído).
+   - Competências: Raciocínio clínico, avaliação de respostas de IA, revisão de evidências, diretrizes de anotação.
+   - Idiomas: Português (Nativo); Inglês (nível real comprovado).
+7. CONFORMIDADE ÉTICA & CFM:
+   - Zero alucinação: não inventar números fabricados, hospitais ou especialidades sem RQE.
+   - Respeitar estritamente as lacunas que o candidato marcou como ausentes.`;
 
   const evidencesText = evidences
-    .slice(0, 30)
+    .slice(0, 35)
     .map(
       (ev) =>
         `- [${(ev.resume_section || "experiencia").toUpperCase()}] ${ev.title} ${
@@ -369,28 +451,36 @@ Nenhum título de especialista (RQE) ou experiência foi fabricado para esta can
 
   const gapsText =
     declaredGaps && declaredGaps.length > 0
-      ? `\nREQUISITOS DA VAGA QUE O CANDIDATO DECLAROU NÃO POSSUIR (NÃO INVENTAR NEM SIMULAR):\n${declaredGaps.map((g) => `- ${g}`).join("\n")}`
+      ? `\n${
+          isEnglish
+            ? "REQUIREMENTS THE CANDIDATE DECLARED THEY DO NOT POSSESS (DO NOT INVENT OR SIMULATE):"
+            : "REQUISITOS DA VAGA QUE O CANDIDATO DECLAROU NÃO POSSUIR (NÃO INVENTAR NEM SIMULAR):"
+        }\n${declaredGaps.map((g) => `- ${g}`).join("\n")}`
       : "";
 
-  const userPrompt = `DADOS DO CANDIDATO:
-Nome: ${candidateName}
-Registro / CRM: ${crmInfo || "Não aplicável"}
+  const userPrompt = `${isEnglish ? "CANDIDATE PROFILE:" : "DADOS DO CANDIDATO:"}
+Name: ${candidateName}
+Registration / CRM: ${crmInfo || (isEnglish ? "Licensed physician in Brazil" : "Médico no Brasil")}
 
-VAGA PRETENDIDA:
-Cargo / Título: ${jobTitle}
-Descrição dos Requisitos:
-${(jobText || "Não fornecido em detalhes").substring(0, 2000)}
+${isEnglish ? "TARGET JOB:" : "VAGA PRETENDIDA:"}
+Title: ${jobTitle}
+Description / Requirements:
+${(jobText || "Not provided in full details").substring(0, 2500)}
 ${gapsText}
 
-BASE DE EVIDÊNCIAS AUDITADAS:
+${isEnglish ? "AUDITED DOCUMENTARY EVIDENCE BASE:" : "BASE DE EVIDÊNCIAS AUDITADAS:"}
 ${evidencesText}
 
-Gere o currículo completo, altamente polido, pronto para uso e visualmente equilibrado em texto formatado.`;
+${
+  isEnglish
+    ? "Generate the complete tailored US Resume in English according to the Formação Médicos Híbridos checklist. Use clean 1-column format, selectable text, action verbs on every bullet, and no placeholder brackets."
+    : "Gere o currículo completo e adaptado em Português conforme o checklist da Formação Médicos Híbridos. Use formato limpo de 1 coluna, texto selecionável, verbos de ação em todos os bullets e sem colchetes de exemplo."
+}`;
 
   return await callClaude(systemPrompt, userPrompt, {
-    maxTokens: 1500,
-    temperature: 0.2,
-    useSonnet: false, // Haiku 4.5 gera rápido, bonito e sem estourar cota!
+    maxTokens: 1200,
+    temperature: 0.15,
+    useSonnet: false,
   });
 }
 
@@ -453,7 +543,7 @@ Retorne EXCLUSIVAMENTE um JSON:
   const userPrompt = `CURRÍCULO DO CANDIDATO:\n${candidateProfile.substring(0, 4000)}\n\nVAGA PRETENDIDA:\n${targetJob.substring(0, 4000)}`;
 
   const responseText = await callClaude(systemPrompt, userPrompt, {
-    maxTokens: 1200,
+    maxTokens: 450,
     temperature: 0.1,
     json: true,
   });

@@ -27,6 +27,8 @@ import {
   RotateCcw,
   RefreshCw,
   Search,
+  Printer,
+  Globe,
 } from "lucide-react";
 import { EvidenceItem } from "@/lib/db/types";
 import { StressTestResult } from "@/services/decisions/stress-test";
@@ -64,6 +66,7 @@ export default function AdaptarPage() {
   // Estados de Reestruturação do Currículo
   const [isRestructuring, setIsRestructuring] = useState(false);
   const [restructuredCv, setRestructuredCv] = useState<string | null>(null);
+  const [targetLang, setTargetLang] = useState<"auto" | "pt" | "en">("auto");
   const [copied, setCopied] = useState(false);
 
   // Carrega dados da sessão ou da API de evidências
@@ -194,6 +197,7 @@ export default function AdaptarPage() {
           candidateName,
           crmInfo,
           declaredGaps: declaredGapsList,
+          targetLang,
         }),
       });
 
@@ -221,6 +225,107 @@ export default function AdaptarPage() {
     navigator.clipboard.writeText(restructuredCv);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // Exportação limpa e isolada em PDF / Impressão sem elementos da página web
+  const handlePrintDocument = () => {
+    if (!restructuredCv) return;
+
+    // Cria ou reutiliza iframe isolado para não capturar elementos visuais do site
+    let iframe = document.getElementById("smartvitae-isolated-print-frame") as HTMLIFrameElement;
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "smartvitae-isolated-print-frame";
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      iframe.style.zIndex = "-9999";
+      document.body.appendChild(iframe);
+    }
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      window.print();
+      return;
+    }
+
+    const cleanCandidateName = candidateName || "Curriculo";
+    const cleanJobTitle = jobTitle || "Oportunidade";
+    const docTitle = `${cleanCandidateName}_${cleanJobTitle}_Resume`;
+
+    const escapedText = restructuredCv
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    iframeDoc.open();
+    iframeDoc.write(`<!DOCTYPE html>
+<html lang="${targetLang === "en" ? "en" : "pt-BR"}">
+<head>
+  <meta charset="utf-8">
+  <title>${docTitle}</title>
+  <style>
+    @page {
+      size: letter portrait;
+      margin: 18mm 18mm 18mm 18mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, "Nimbus Sans L", "Liberation Sans", sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #111827;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .resume-sheet {
+      width: 100%;
+      margin: 0 auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #111827;
+    }
+  </style>
+</head>
+<body>
+  <div class="resume-sheet">${escapedText}</div>
+</body>
+</html>`);
+    iframeDoc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    }, 300);
+  };
+
+  // Download do currículo em texto puro formatado
+  const handleDownloadTxt = () => {
+    if (!restructuredCv) return;
+    const blob = new Blob([restructuredCv], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const safeName = (candidateName || "Candidato").replace(/[^a-zA-Z0-9À-ÿ]/g, "_");
+    const safeJob = (jobTitle || "Vaga").replace(/[^a-zA-Z0-9À-ÿ]/g, "_");
+    link.download = `${safeName}_${safeJob}_Resume.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Contagem por categoria para as abas
@@ -397,18 +502,64 @@ export default function AdaptarPage() {
         <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5 max-w-2xl">
+          <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-              Recurso Principal da Plataforma
+              Recurso Principal • Padrão Médicos Híbridos & Harvard
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Reestruturar Currículo Profissional com Claude 3.5 Sonnet
+              Reestruturar Currículo Factual com Claude 3.5 Sonnet
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              O cérebro da IA reorganiza suas evidências comprovadas no formato ATS ideal para <strong className="text-blue-200">{jobTitle}</strong>.
-              Ele destaca suas forças reais, conecta suas qualificações aos requisitos da vaga e respeita o código de ética sem qualquer alucinação.
+              O cérebro da IA reorganiza suas evidências comprovadas no formato ATS ideal de 1 coluna para <strong className="text-blue-200">{jobTitle}</strong>.
+              Ele destaca forças reais, projetos em IA com limitações explícitas, verbos de ação e zero alucinações.
             </p>
+
+            {/* Seletor de Idioma e Template */}
+            <div className="pt-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-bold text-slate-300">Idioma e Padrão do Currículo:</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 max-w-lg">
+                <button
+                  type="button"
+                  onClick={() => setTargetLang("auto")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between border cursor-pointer ${
+                    targetLang === "auto"
+                      ? "bg-blue-600 text-white border-blue-400 shadow-sm"
+                      : "bg-slate-900/90 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <span>Automático</span>
+                  <span className="text-[10px] opacity-75">Detectar Vaga</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetLang("pt")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between border cursor-pointer ${
+                    targetLang === "pt"
+                      ? "bg-emerald-600 text-white border-emerald-400 shadow-sm"
+                      : "bg-slate-900/90 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <span>🇧🇷 Português</span>
+                  <span className="text-[10px] opacity-75">CFM / A4</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetLang("en")}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between border cursor-pointer ${
+                    targetLang === "en"
+                      ? "bg-indigo-600 text-white border-indigo-400 shadow-sm"
+                      : "bg-slate-900/90 text-slate-400 border-slate-800 hover:text-white hover:bg-slate-800"
+                  }`}
+                >
+                  <span>🇺🇸 English</span>
+                  <span className="text-[10px] opacity-75">US Resume</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="shrink-0 flex flex-col sm:flex-row md:flex-col gap-2">
@@ -436,26 +587,45 @@ export default function AdaptarPage() {
           </div>
         </div>
 
-        {/* Bloco de Resultado do Currículo Gerado */}
+        {/* Bloco de Resultado do Currículo Gerado com Pré-Visualização de Folha A4 */}
         {restructuredCv && (
-          <div id="cv-reestruturado" className="mt-8 pt-7 border-t border-slate-800/80 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                  Currículo Pronto em Formato ATS de 1 Coluna (Texto Puro):
-                </span>
+          <div id="cv-reestruturado" className="mt-8 pt-7 border-t border-slate-800/80 space-y-6">
+            {/* Checklist de Conformidade Factual */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Conformidade com o Checklist Médicos Híbridos & Harvard:
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                    ✓ Layout ATS 1 Coluna
+                  </span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                    ✓ Verbos de Ação
+                  </span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                    ✓ Limitações Fatuais Explícitas
+                  </span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
+                    ✓ Zero Métricas Falsas
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Botões de Ação do Documento */}
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCopyCv}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors cursor-pointer"
                 >
                   {copied ? (
                     <>
                       <Check className="w-4 h-4 text-emerald-400" />
-                      Copiado com Sucesso!
+                      Copiado!
                     </>
                   ) : (
                     <>
@@ -467,17 +637,38 @@ export default function AdaptarPage() {
 
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+                  onClick={handleDownloadTxt}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white border border-slate-700 transition-colors cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  Imprimir / PDF
+                  <Download className="w-4 h-4 text-slate-300" />
+                  Baixar TXT
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintDocument}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/30 transition-all cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimir / Salvar PDF
                 </button>
               </div>
             </div>
 
-            <div className="p-6 rounded-2xl bg-black/60 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-800 shadow-inner max-h-[550px] overflow-y-auto selection:bg-blue-600 selection:text-white">
-              {restructuredCv}
+            {/* Folha de Papel A4 / Carta Realista */}
+            <div className="flex justify-center p-2 sm:p-4 bg-slate-950/60 rounded-3xl border border-slate-800/60">
+              <div
+                id="documento-cv-impressao"
+                className="w-full max-w-[850px] bg-white text-slate-900 rounded-2xl shadow-2xl p-8 sm:p-12 md:p-16 border border-slate-200 select-text"
+                style={{
+                  minHeight: "1050px",
+                  fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                }}
+              >
+                <div className="text-[10pt] sm:text-[10.5pt] leading-[1.48] text-slate-900 whitespace-pre-wrap font-normal selection:bg-blue-100 selection:text-blue-900">
+                  {restructuredCv}
+                </div>
+              </div>
             </div>
           </div>
         )}

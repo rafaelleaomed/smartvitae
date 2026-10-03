@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { jobTitle, jobText, evidences, candidateName, crmInfo, declaredGaps } =
+    const { jobTitle, jobText, evidences, candidateName, crmInfo, declaredGaps, targetLang } =
       await req.json();
 
     if (!evidences || evidences.length === 0) {
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       candidateName: candidateName || "Candidato",
       crmInfo: crmInfo || null,
       declaredGaps: declaredGaps || [],
+      targetLang: targetLang || "auto",
     });
 
     return NextResponse.json({ success: true, restructuredCv });

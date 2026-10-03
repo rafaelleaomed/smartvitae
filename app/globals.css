@@ -39,3 +39,49 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* Regras de Impressão Isolada para Exportação do Currículo em PDF */
+@media print {
+  header, footer, nav, aside, button, .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Oculta tudo na tela de impressão por padrão */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Torna visível apenas a folha do currículo */
+  #documento-cv-impressao,
+  #documento-cv-impressao * {
+    visibility: visible !important;
+  }
+
+  /* Posiciona a folha no topo absoluto ocupando 100% da página */
+  #documento-cv-impressao {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    size: letter portrait;
+    margin: 15mm 18mm;
+  }
+}
+
