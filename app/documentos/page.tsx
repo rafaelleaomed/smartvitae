@@ -16,6 +16,8 @@ import {
   HelpCircle,
   ArrowRight,
   ClipboardPaste,
+  ChevronDown,
+  Video
 } from "lucide-react";
 import { DocumentRecord } from "@/lib/db/types";
 
@@ -32,6 +34,7 @@ export default function DocumentosPage() {
   const [linkedinUrl, setLinkedinUrl] = useState("https://www.linkedin.com/in/rafaelleaomed/");
   const [rawLinkedInText, setRawLinkedInText] = useState("");
   const [isImportingLinkedIn, setIsImportingLinkedIn] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   useEffect(() => {
     loadDocuments();
@@ -332,61 +335,75 @@ American Heart Association`);
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Opção A: Salvar como PDF no LinkedIn (1 Clique - Recomendado) */}
-            <div className="bg-white p-6 rounded-2xl border-2 border-blue-200/80 hover:border-blue-500 transition-all shadow-sm space-y-5 flex flex-col justify-between">
+            <div 
+              className={`bg-white p-6 rounded-2xl border-2 transition-all shadow-sm space-y-5 flex flex-col justify-between relative overflow-hidden ${
+                isDragOver ? "border-blue-500 bg-blue-50/50 scale-[1.02]" : "border-blue-200/80 hover:border-blue-400"
+              }`}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const fileInput = document.getElementById('linkedin-pdf-upload') as HTMLInputElement;
+                if (fileInput && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  fileInput.files = e.dataTransfer.files;
+                  const event = new Event('change', { bubbles: true });
+                  fileInput.dispatchEvent(event);
+                }
+              }}
+            >
+              {isDragOver && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-blue-500/10 backdrop-blur-[2px] rounded-2xl border-2 border-blue-500 border-dashed m-1">
+                  <div className="bg-white px-6 py-3 rounded-full shadow-lg text-blue-600 font-bold flex items-center gap-2 animate-bounce">
+                    <FileCheck2 className="w-5 h-5" />
+                    Solte o PDF aqui!
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
                     <Sparkles className="w-3.5 h-3.5" />
                     Método Recomendado (100% Completo)
                   </div>
-                  <span className="text-xs text-slate-400 font-medium">Tempo: 3 segundos</span>
+                  <a
+                    href={linkedinUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-600 font-semibold hover:underline inline-flex items-center gap-1"
+                  >
+                    Abrir Meu Perfil <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
 
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    1. Salvar como PDF do LinkedIn
+                    Importar PDF do LinkedIn
                   </h3>
                   <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    O próprio LinkedIn gera um PDF perfeito com todas as suas experiências, residências, formações e licenças:
+                    Arraste o PDF do seu perfil gerado pelo LinkedIn. É o método mais rico em dados e 100% livre de erros.
                   </p>
                 </div>
 
-                <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-700">
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      1
+                {/* Placeholder para o Video/GIF */}
+                <div className="rounded-xl bg-slate-100 border border-slate-200 aspect-[2/1] flex flex-col items-center justify-center text-slate-400 overflow-hidden relative group">
+                  {/* Quando o usuário criar o GIF, ele substituirá este componente img */}
+                  <img src="/images/tutorial-linkedin.gif" alt="Tutorial LinkedIn" className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                  <div className="flex flex-col items-center gap-2 transition-opacity z-0">
+                    <Video className="w-8 h-8" />
+                    <span className="text-xs font-medium px-4 text-center">
+                      (Adicione o GIF 'tutorial-linkedin.gif' na pasta public/images)<br/>
+                      1. Clique em "Mais"<br/>
+                      2. Salvar como PDF
                     </span>
-                    <span>
-                      Abra seu perfil no LinkedIn:{" "}
-                      <a
-                        href={linkedinUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 font-semibold underline inline-flex items-center gap-0.5"
-                      >
-                        Abrir Perfil <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      2
-                    </span>
-                    <span>
-                      Clique no botão <strong>"Mais"</strong> (ao lado de 'Enviar por mensagem') e selecione <strong>"Salvar como PDF"</strong>.
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                      3
-                    </span>
-                    <span>Solte o arquivo PDF baixado no botão abaixo!</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium p-3.5 rounded-xl cursor-pointer shadow-sm text-sm transition-all">
+                <label htmlFor="linkedin-pdf-upload" className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium p-3.5 rounded-xl cursor-pointer shadow-sm text-sm transition-all group relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/20 to-blue-400/0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
                   {isImportingLinkedIn ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -395,10 +412,11 @@ American Heart Association`);
                   ) : (
                     <>
                       <FileCheck2 className="w-4 h-4" />
-                      Soltar PDF do LinkedIn Aqui
+                      Soltar PDF ou Clicar Aqui
                     </>
                   )}
                   <input
+                    id="linkedin-pdf-upload"
                     type="file"
                     className="hidden"
                     accept=".pdf"
@@ -410,60 +428,62 @@ American Heart Association`);
             </div>
 
             {/* Opção B: Colar Texto do Perfil */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Opção Alternativa
+            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-start">
+              <details className="group h-full">
+                <summary className="flex justify-between items-center font-medium cursor-pointer list-none text-slate-700 hover:text-slate-900 transition-colors p-2 -m-2 rounded-lg hover:bg-slate-50">
+                  <span className="flex items-center gap-2 text-sm font-bold">
+                    <ClipboardPaste className="w-4 h-4 text-slate-500" />
+                    Opção Alternativa: Colar Texto
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleLoadDemoProfile}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1"
-                  >
-                    <ClipboardPaste className="w-3.5 h-3.5" />
-                    Carregar Perfil de Teste
-                  </button>
+                  <ChevronDown className="w-4 h-4 text-slate-400 group-open:-rotate-180 transition-transform duration-300" />
+                </summary>
+                
+                <div className="mt-6 space-y-4 animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-600">
+                        Copie as informações do seu perfil e cole abaixo:
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleLoadDemoProfile}
+                        className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200 font-semibold transition-colors"
+                      >
+                        Usar Perfil Teste
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={8}
+                      value={rawLinkedInText}
+                      onChange={(e) => setRawLinkedInText(e.target.value)}
+                      placeholder="Cole aqui o texto copiado do LinkedIn..."
+                      className="w-full p-3 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-sans resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleLinkedInTextImport}
+                      disabled={isImportingLinkedIn || rawLinkedInText.trim().length < 15}
+                      className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium p-3.5 rounded-xl text-sm transition-all shadow-sm mt-4"
+                    >
+                      {isImportingLinkedIn ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Classificando Evidências...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 text-blue-400" />
+                          Processar Texto com o Jev
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    2. Ou Cole o Texto do seu Perfil
-                  </h3>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Copie as informações do seu perfil (seções de Experiência, Residência, Formação) e cole abaixo:
-                  </p>
-                </div>
-
-                <textarea
-                  rows={6}
-                  value={rawLinkedInText}
-                  onChange={(e) => setRawLinkedInText(e.target.value)}
-                  placeholder="Cole aqui o texto copiado do LinkedIn..."
-                  className="w-full p-3 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 font-sans"
-                />
-              </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={handleLinkedInTextImport}
-                  disabled={isImportingLinkedIn || rawLinkedInText.trim().length < 15}
-                  className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-medium p-3.5 rounded-xl text-sm transition-all shadow-sm"
-                >
-                  {isImportingLinkedIn ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Classificando Evidências...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 text-blue-400" />
-                      Processar Texto com o Jev
-                    </>
-                  )}
-                </button>
-              </div>
+              </details>
             </div>
           </div>
 
